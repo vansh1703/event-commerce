@@ -15,6 +15,10 @@ export default function HomePage() {
     }
   };
 
+  const handleFindJob = () => {
+    router.push("/events");
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-6">
       <div className="max-w-4xl w-full">
@@ -33,7 +37,7 @@ export default function HomePage() {
           
           {/* Card 1 */}
           <div
-            onClick={() => router.push("/events")}
+            onClick={handleFindJob}
             className="cursor-pointer bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 border border-white/20 hover:shadow-2xl hover:scale-105 transition-all duration-300 group"
           >
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">
@@ -43,7 +47,7 @@ export default function HomePage() {
               Looking for an Event Job
             </h2>
             <p className="text-gray-600">
-              Browse available jobs and apply instantly without signup.
+              Browse available jobs and apply. Login to track your applications.
             </p>
             <div className="mt-6 text-indigo-600 font-semibold flex items-center gap-2">
               Browse Jobs <span>→</span>
@@ -56,8 +60,8 @@ export default function HomePage() {
             className="cursor-pointer bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 border border-white/20 hover:shadow-2xl hover:scale-105 transition-all duration-300 group"
           >
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">
-              
-            </div> 
+              📝
+            </div>
             <h2 className="text-2xl font-bold mb-3 text-gray-800">
               Want to Post an Event Job
             </h2>
