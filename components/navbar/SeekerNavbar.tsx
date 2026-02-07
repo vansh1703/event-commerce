@@ -5,14 +5,56 @@ import { usePathname } from "next/navigation";
 import SeekerLogoutButton from "./SeekerLogoutButton";
 import { useEffect, useState } from "react";
 
+type Rating = {
+  stars: number;
+  jobTitle: string;
+  date: string;
+};
+
+type RedFlag = {
+  date: string;
+  reason: string;
+  jobTitle: string;
+};
+
+type SeekerProfile = {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  redFlags: RedFlag[];
+  ratings: Rating[];
+  bannedUntil: string | null;
+};
+
 export default function SeekerNavbar() {
   const pathname = usePathname();
   const [seekerUser, setSeekerUser] = useState<any>(null);
+  const [avgRating, setAvgRating] = useState<string>("0");
+  const [redFlagCount, setRedFlagCount] = useState(0);
 
   useEffect(() => {
     const user = localStorage.getItem("seekerUser");
     if (user) {
-      setSeekerUser(JSON.parse(user));
+      const parsedUser = JSON.parse(user);
+      setSeekerUser(parsedUser);
+
+      // Get stats from seeker accounts
+      const seekerAccounts: SeekerProfile[] = JSON.parse(
+        localStorage.getItem("seekerAccounts") || "[]"
+      );
+
+      const profile = seekerAccounts.find((acc) => acc.name === parsedUser.name);
+
+      if (profile) {
+        const ratings = profile.ratings || [];
+        const avg =
+          ratings.length > 0
+            ? ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length
+            : 0;
+        setAvgRating(avg > 0 ? avg.toFixed(1) : "0");
+        setRedFlagCount(profile.redFlags?.length || 0);
+      }
     }
   }, []);
 
@@ -37,10 +79,17 @@ export default function SeekerNavbar() {
           <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm md:text-base shadow-lg">
             {getInitials(seekerUser.name)}
           </div>
-          {/* Name - Hidden on mobile */}
+          {/* Name & Stats - Hidden on mobile */}
           <div className="hidden md:block">
             <p className="font-semibold text-gray-800">{seekerUser.name}</p>
-            <p className="text-xs text-gray-500">{seekerUser.email}</p>
+            <div className="flex gap-3 text-xs text-gray-600">
+              <span className="flex items-center gap-1">
+                ⭐ <span className="font-semibold">{avgRating}</span>
+              </span>
+              <span className={`flex items-center gap-1 ${redFlagCount > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                🚩 <span>{redFlagCount}</span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -78,6 +127,16 @@ export default function SeekerNavbar() {
         <div className="md:hidden">
           <SeekerLogoutButton />
         </div>
+      </div>
+
+      {/* Mobile Stats Bar */}
+      <div className="md:hidden mt-3 pt-3 border-t border-gray-200 flex justify-center gap-6 text-sm">
+        <span className="flex items-center gap-1">
+          ⭐ <span className="font-semibold">{avgRating}</span> Rating
+        </span>
+        <span className={`flex items-center gap-1 ${redFlagCount > 0 ? 'text-red-600 font-semibold' : ''}`}>
+          🚩 <span>{redFlagCount}</span> Flags
+        </span>
       </div>
     </nav>
   );

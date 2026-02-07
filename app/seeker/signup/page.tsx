@@ -29,8 +29,16 @@ export default function SeekerSignupPage() {
       return;
     }
 
-    // Save new seeker account
-    const newAccount = { name, email, password, phone };
+    // Save new seeker account with profile stats
+    const newAccount = {
+      name,
+      email,
+      password,
+      phone,
+      redFlags: [],
+      ratings: [],
+      bannedUntil: null,
+    };
     localStorage.setItem(
       "seekerAccounts",
       JSON.stringify([...existingAccounts, newAccount])

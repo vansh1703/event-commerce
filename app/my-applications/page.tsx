@@ -17,7 +17,7 @@ type Application = {
   experience: string;
   availability: string;
   appliedAt: string;
-  status: "pending" | "accepted" | "rejected"; // No longer optional
+  status: "pending" | "accepted" | "rejected";
 };
 
 type Job = {
@@ -50,6 +50,10 @@ export default function MyApplicationsPage() {
   const [seekerUser, setSeekerUser] = useState<SeekerUser | null>(null);
 
   useEffect(() => {
+    loadApplications();
+  }, [router]);
+
+  const loadApplications = () => {
     /* -------- Auth Check -------- */
     const storedUser = localStorage.getItem("seekerUser");
 
@@ -77,7 +81,6 @@ export default function MyApplicationsPage() {
         const job = jobs.find(j => j.id === app.jobId);
         if (!job) return null;
         
-        // Create properly typed application with default status
         const typedApp: Application = {
           jobId: app.jobId,
           name: app.name,
@@ -95,7 +98,33 @@ export default function MyApplicationsPage() {
       .filter((app): app is ApplicationWithJob => app !== null);
 
     setMyApplications(userApplications);
-  }, [router]);
+  };
+
+  /* =======================
+     WITHDRAW APPLICATION
+  ======================= */
+
+  const handleWithdraw = (jobId: string) => {
+    const confirm = window.confirm(
+      "Are you sure you want to withdraw this application?"
+    );
+
+    if (!confirm) return;
+
+    const allApplications = JSON.parse(
+      localStorage.getItem("applications") || "[]"
+    );
+
+    const updatedApplications = allApplications.filter(
+      (app: Application) =>
+        !(app.jobId === jobId && app.name === seekerUser?.name)
+    );
+
+    localStorage.setItem("applications", JSON.stringify(updatedApplications));
+
+    alert("Application withdrawn successfully!");
+    loadApplications();
+  };
 
   /* =======================
      HELPERS
@@ -223,6 +252,18 @@ export default function MyApplicationsPage() {
                       <span className="font-medium">Experience:</span>{" "}
                       {app.experience}
                     </p>
+                  )}
+
+                  {/* Withdraw Button - Only for Pending */}
+                  {app.status === "pending" && (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => handleWithdraw(app.jobId)}
+                        className="w-full bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all duration-300 font-semibold shadow-lg text-sm md:text-base"
+                      >
+                        Withdraw Application
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
