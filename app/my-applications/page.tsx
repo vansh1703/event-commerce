@@ -28,6 +28,7 @@ type Job = {
   payment: string;
   date: string;
   time: string;
+  completed?: boolean;
 };
 
 type ApplicationWithJob = Application & {
@@ -54,7 +55,6 @@ export default function MyApplicationsPage() {
   }, [router]);
 
   const loadApplications = () => {
-    /* -------- Auth Check -------- */
     const storedUser = localStorage.getItem("seekerUser");
 
     if (!storedUser) {
@@ -65,7 +65,6 @@ export default function MyApplicationsPage() {
     const parsedUser: SeekerUser = JSON.parse(storedUser);
     setSeekerUser(parsedUser);
 
-    /* -------- Load Data -------- */
     const allApplications = JSON.parse(
       localStorage.getItem("applications") || "[]"
     ) as (Application & { status?: "pending" | "accepted" | "rejected" })[];
@@ -74,12 +73,16 @@ export default function MyApplicationsPage() {
       localStorage.getItem("jobs") || "[]"
     ) as Job[];
 
-    /* -------- Filter & Map -------- */
+    // Filter only active (not completed) jobs
     const userApplications: ApplicationWithJob[] = allApplications
       .filter(app => app.name === parsedUser.name)
       .map(app => {
         const job = jobs.find(j => j.id === app.jobId);
         if (!job) return null;
+        
+        // Check if event is completed
+        const isCompleted = job.completed || new Date(job.date) < new Date();
+        if (isCompleted) return null; // Hide completed events
         
         const typedApp: Application = {
           jobId: app.jobId,
@@ -161,14 +164,23 @@ export default function MyApplicationsPage() {
       <div className="max-w-5xl mx-auto">
         <SeekerNavbar />
 
-        <h1 className="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          My Applications
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            My Applications
+          </h1>
+          
+          <button
+            onClick={() => router.push("/completed-events")}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 md:px-6 py-2 md:py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg text-sm md:text-base"
+          >
+            Completed Events
+          </button>
+        </div>
 
         {myApplications.length === 0 ? (
           <div className="bg-white rounded-3xl shadow-lg p-8 text-center border border-gray-100">
             <p className="text-gray-500 mb-4">
-              You haven't applied to any jobs yet.
+              You have no active applications.
             </p>
             <button
               onClick={() => router.push("/events")}

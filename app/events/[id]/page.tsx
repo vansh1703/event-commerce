@@ -44,58 +44,82 @@ export default function JobDetailsPage() {
 
       // Check if already applied
       const applications = JSON.parse(
-        localStorage.getItem("applications") || "[]"
+        localStorage.getItem("applications") || "[]",
       );
       const hasApplied = applications.some(
-        (app: any) => app.jobId === jobId && app.name === parsedUser.name
+        (app: any) => app.jobId === jobId && app.name === parsedUser.name,
       );
       setAlreadyApplied(hasApplied);
     }
   }, [jobId, router]);
 
   // Apply Submit
-  const handleApply = (e: React.FormEvent) => {
-    e.preventDefault();
+ const handleApply = (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (!seekerUser) {
-      const confirmLogin = window.confirm(
-        "Please login to apply for this job. Click OK to go to login page."
+  if (!seekerUser) {
+    const confirmLogin = window.confirm(
+      "Please login to apply for this job. Click OK to go to login page."
+    );
+    if (confirmLogin) {
+      router.push("/seeker/login");
+    }
+    return;
+  }
+
+  // 🔒 Ban check
+  const seekerAccounts = JSON.parse(
+    localStorage.getItem("seekerAccounts") || "[]"
+  );
+  const profile = seekerAccounts.find(
+    (acc: any) => acc.name === seekerUser.name
+  );
+
+  if (profile?.bannedUntil) {
+    const banDate = new Date(profile.bannedUntil);
+    if (banDate > new Date()) {
+      alert(
+        `You are banned from applying until ${banDate.toLocaleDateString()}`
       );
-      if (confirmLogin) {
-        router.push("/seeker/login");
-      }
       return;
     }
+  }
 
-    if (alreadyApplied) {
-      alert("You have already applied for this job!");
-      return;
-    }
+  if (alreadyApplied) {
+    alert("You have already applied for this job!");
+    return;
+  }
 
-    const newApplication = {
-      jobId,
-      name,
-      phone,
-      age,
-      city,
-      experience,
-      availability,
-      appliedAt: new Date().toLocaleDateString(),
-      status: "pending",
-    };
-
-    const oldApplications = JSON.parse(
-      localStorage.getItem("applications") || "[]"
-    );
-
-    localStorage.setItem(
-      "applications",
-      JSON.stringify([...oldApplications, newApplication])
-    );
-
-    alert("Applied Successfully!");
-    router.push("/my-applications");
+  // ✅ CREATE APPLICATION
+  const newApplication = {
+    jobId: job.id,
+    name,
+    phone,
+    age,
+    city,
+    experience,
+    availability,
+    appliedAt: new Date().toISOString(),
+    status: "pending", // important
   };
+
+  // ✅ SAVE TO LOCALSTORAGE
+  const applications = JSON.parse(
+    localStorage.getItem("applications") || "[]"
+  );
+
+  applications.push(newApplication);
+  localStorage.setItem("applications", JSON.stringify(applications));
+
+  // ✅ UPDATE UI
+  setAlreadyApplied(true);
+
+  alert("Application submitted successfully 🎉");
+
+  // optional redirect
+  router.push("/my-applications");
+};
+
 
   if (!job) return null;
 

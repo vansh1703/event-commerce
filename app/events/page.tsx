@@ -12,6 +12,8 @@ type Job = {
   location: string;
   helpersNeeded: number;
   payment: string;
+  date: string;
+  completed?: boolean;
 };
 
 export default function EventsPage() {
@@ -21,7 +23,21 @@ export default function EventsPage() {
 
   useEffect(() => {
     const storedJobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    setJobs(storedJobs);
+    
+    // Filter out completed events
+    const activeJobs = storedJobs.filter((job: Job) => {
+      // Check if manually marked complete
+      if (job.completed) return false;
+      
+      // Check if date has passed
+      const eventDate = new Date(job.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      return eventDate >= today;
+    });
+    
+    setJobs(activeJobs);
 
     // Check if seeker is logged in
     const user = localStorage.getItem("seekerUser");
@@ -66,7 +82,7 @@ export default function EventsPage() {
 
         {jobs.length === 0 ? (
           <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg p-6 md:p-8 text-center border border-white/20">
-            <p className="text-gray-500">No event requirements posted yet.</p>
+            <p className="text-gray-500">No active event jobs available.</p>
           </div>
         ) : (
           <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
@@ -89,6 +105,11 @@ export default function EventsPage() {
                   <p className="text-gray-600 flex items-center gap-2">
                     <span className="text-indigo-600">📍</span>
                     <span className="font-medium">Location:</span> {job.location}
+                  </p>
+
+                  <p className="text-gray-600 flex items-center gap-2">
+                    <span className="text-indigo-600">📅</span>
+                    <span className="font-medium">Date:</span> {job.date}
                   </p>
 
                   <p className="text-gray-600 flex items-center gap-2">
