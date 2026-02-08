@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,25 +13,60 @@ export default function LoginPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const storedAccount = localStorage.getItem("posterAccount");
+    // Check if SuperAdmin
+    if (email === SUPERADMIN_EMAIL && password === SUPERADMIN_PASSWORD) {
+      localStorage.setItem(
+        "posterUser",
+        JSON.stringify({ 
+          email: SUPERADMIN_EMAIL, 
+          companyName: "SuperAdmin",
+          role: "superadmin" 
+        })
+      );
+      alert("Welcome SuperAdmin! 👑");
+      router.push("/superadmin/dashboard");
+      return;
+    }
 
-    if (!storedAccount) {
+    // Check regular poster accounts
+    const storedAccounts = localStorage.getItem("posterAccount");
+
+    if (!storedAccounts) {
       alert("No account found. Please signup first.");
       router.push("/auth/signup");
       return;
     }
 
-    const account = JSON.parse(storedAccount);
+    let accounts;
+    try {
+      accounts = JSON.parse(storedAccounts);
+    } catch (e) {
+      alert("Account data corrupted. Please signup again.");
+      localStorage.removeItem("posterAccount");
+      router.push("/auth/signup");
+      return;
+    }
 
-    if (account.email === email && account.password === password) {
-      // Save logged-in poster session
+    // Handle both array and single object formats
+    const accountsArray = Array.isArray(accounts) ? accounts : [accounts];
+    
+    const account = accountsArray.find(
+      (acc: any) => acc.email === email && acc.password === password
+    );
+
+    if (account) {
+      // Save session with role
       localStorage.setItem(
         "posterUser",
-        JSON.stringify({ email })
+        JSON.stringify({ 
+          email: account.email, 
+          companyName: account.companyName || "Company",
+          role: "company" 
+        })
       );
 
       alert("Login Successful!");
-      router.push("/dashboard");
+      router.push("/company/dashboard");
     } else {
       alert("Invalid email or password!");
     }
@@ -80,6 +116,14 @@ export default function LoginPage() {
             Sign Up
           </span>
         </p>
+
+        {/* <div className="mt-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
+          <p className="text-xs text-indigo-700 text-center">
+            💡 <strong>SuperAdmin Login:</strong><br/>
+            Email: admin@eventhire.com<br/>
+            Password: SuperAdmin@2026
+          </p>
+        </div> */}
       </div>
     </main>
   );
