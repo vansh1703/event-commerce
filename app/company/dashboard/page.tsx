@@ -74,6 +74,10 @@ export default function CompanyDashboard() {
   const [selectedCandidate, setSelectedCandidate] = useState<Application | null>(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [seekerProfile, setSeekerProfile] = useState<SeekerProfile | null>(null);
+  
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedHistoryJob, setSelectedHistoryJob] = useState<Job | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   useEffect(() => {
     const user = localStorage.getItem("posterUser");
@@ -104,9 +108,11 @@ export default function CompanyDashboard() {
     const myReqs = allRequests.filter((req) => req.companyEmail === email);
     setMyRequests(myReqs);
 
-    // Load approved jobs
+    // Load approved jobs - filter out completed ones
     const allJobs: Job[] = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const myApprovedJobs = allJobs.filter((job) => job.companyEmail === email);
+    const myApprovedJobs = allJobs.filter(
+      (job) => job.companyEmail === email && !job.completed && new Date(job.date) >= new Date()
+    );
     setApprovedJobs(myApprovedJobs);
 
     // Load applications
@@ -114,6 +120,18 @@ export default function CompanyDashboard() {
       localStorage.getItem("applications") || "[]"
     );
     setApplications(allApplications);
+  };
+
+  const getCompletedJobs = () => {
+    const allJobs: Job[] = JSON.parse(localStorage.getItem("jobs") || "[]");
+    return allJobs.filter(
+      (job) => job.companyEmail === companyEmail && (job.completed || new Date(job.date) < new Date())
+    );
+  };
+
+  const openHistoryJobModal = (job: Job) => {
+    setSelectedHistoryJob(job);
+    setShowHistoryModal(true);
   };
 
   const openCandidateModal = (candidate: Application) => {
@@ -221,7 +239,7 @@ export default function CompanyDashboard() {
         </div>
         <div className="bg-green-100 border-2 border-green-300 rounded-2xl p-4 text-center">
           <p className="text-3xl font-bold text-green-700">{approvedJobs.length}</p>
-          <p className="text-green-600 font-semibold">Approved Jobs</p>
+          <p className="text-green-600 font-semibold">Active Jobs</p>
         </div>
         <div className="bg-red-100 border-2 border-red-300 rounded-2xl p-4 text-center">
           <p className="text-3xl font-bold text-red-700">{rejectedRequests.length}</p>
@@ -229,11 +247,59 @@ export default function CompanyDashboard() {
         </div>
         <div className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center">
           <p className="text-3xl font-bold text-purple-700">
-            {applications.filter((app) => app.status === "accepted").length}
+            {getCompletedJobs().length}
           </p>
-          <p className="text-purple-600 font-semibold">Total Accepted</p>
+          <p className="text-purple-600 font-semibold">Completed Events</p>
         </div>
       </div>
+
+      {/* Event History Toggle */}
+      {getCompletedJobs().length > 0 && (
+        <div className="max-w-6xl mx-auto mb-6">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg"
+          >
+            {showHistory ? "Hide" : "Show"} Event History ({getCompletedJobs().length})
+          </button>
+        </div>
+      )}
+
+      {/* Event History Section */}
+      {showHistory && (
+        <div className="max-w-6xl mx-auto mb-8 bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">📜 Event History</h3>
+          <div className="max-h-96 overflow-y-auto space-y-2">
+            {getCompletedJobs().map((job) => {
+              const jobApplicants = applications.filter((app) => app.jobId === job.id);
+              const acceptedCount = jobApplicants.filter((app) => app.status === "accepted").length;
+              
+              return (
+                <div
+                  key={job.id}
+                  onClick={() => openHistoryJobModal(job)}
+                  className="flex justify-between items-center p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200 hover:shadow-md transition-all cursor-pointer"
+                >
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-800">{job.title}</h4>
+                    <p className="text-sm text-gray-600">{job.eventType} • {job.location}</p>
+                    <p className="text-sm text-gray-600">Date: {job.date}</p>
+                    <p className="text-sm text-gray-600">
+                      {acceptedCount} accepted • {jobApplicants.length} total applicants
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                      ✓ Completed
+                    </span>
+                    <span className="text-gray-400 text-xl">→</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Pending Requests */}
@@ -310,10 +376,10 @@ export default function CompanyDashboard() {
           </div>
         )}
 
-        {/* Approved Jobs with Accepted Candidates */}
+        {/* Active Jobs with Accepted Candidates */}
         <div>
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            ✓ Approved Jobs & Accepted Candidates ({approvedJobs.length})
+            🎯 Active Jobs & Accepted Candidates ({approvedJobs.length})
           </h2>
 
           {approvedJobs.length === 0 ? (
@@ -349,9 +415,9 @@ export default function CompanyDashboard() {
                         <p className="text-sm text-gray-600">
                           {job.eventType} • {job.location} • {job.date} at {job.time}
                         </p>
-                        {/* <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-gray-600 mt-1">
                           💰 Posted Payment: {job.payment}
-                        </p> */}
+                        </p>
                       </div>
                       
                       {acceptedCandidates.length > 0 && (
@@ -359,7 +425,7 @@ export default function CompanyDashboard() {
                           onClick={() => exportCandidates(job.id, job.title)}
                           className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
                         >
-                          📊 Export to Excel
+                          <span className="text-white">📊 Export to Excel</span>
                         </button>
                       )}
                     </div>
@@ -548,6 +614,146 @@ export default function CompanyDashboard() {
             <button
               onClick={() => setShowCandidateModal(false)}
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Event History Detail Modal */}
+      {showHistoryModal && selectedHistoryJob && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowHistoryModal(false)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-5xl shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Event Header */}
+            <div className="mb-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                    {selectedHistoryJob.title}
+                  </h2>
+                  <p className="text-gray-600">
+                    {selectedHistoryJob.eventType} • {selectedHistoryJob.location}
+                  </p>
+                  <p className="text-gray-600">
+                    📅 {selectedHistoryJob.date} at {selectedHistoryJob.time}
+                  </p>
+                </div>
+                <span className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                  ✓ Completed
+                </span>
+              </div>
+
+              {/* Export Button */}
+              {applications.filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted").length > 0 && (
+                <button
+                  onClick={() => exportCandidates(selectedHistoryJob.id, selectedHistoryJob.title)}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2 mb-6"
+                >
+                  <span className="text-white">📊 Export to Excel</span>
+                </button>
+              )}
+            </div>
+
+            {/* Event Description */}
+            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
+              <h3 className="font-bold text-gray-800 mb-2">Event Description:</h3>
+              <p className="text-gray-700">{selectedHistoryJob.description}</p>
+              <div className="mt-3 space-y-1 text-sm text-gray-600">
+                <p>👥 Helpers Needed: {selectedHistoryJob.helpersNeeded}</p>
+                <p>📞 Contact: {selectedHistoryJob.contactPhone}</p>
+              </div>
+            </div>
+
+            {/* Accepted Candidates Section */}
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                Accepted Candidates ({applications.filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted").length})
+              </h3>
+
+              {applications.filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted").length === 0 ? (
+                <div className="bg-gray-50 rounded-2xl p-8 text-center">
+                  <p className="text-gray-500">No candidates were accepted for this event.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {applications
+                    .filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted")
+                    .map((candidate, index) => {
+                      const seekerAccounts: SeekerProfile[] = JSON.parse(
+                        localStorage.getItem("seekerAccounts") || "[]"
+                      );
+                      const profile = seekerAccounts.find((acc) => acc.name === candidate.name);
+                      
+                      // Get ratings for THIS specific job
+                      const jobRatings = profile?.ratings?.filter(
+                        (r) => r.jobTitle === selectedHistoryJob.title
+                      ) || [];
+                      
+                      const jobRating = jobRatings.length > 0 ? jobRatings[0].stars : null;
+                      
+                      // Get red flags for THIS specific job
+                      const jobFlags = profile?.redFlags?.filter(
+                        (f) => f.jobTitle === selectedHistoryJob.title
+                      ) || [];
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => openCandidateModal(candidate)}
+                          className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-lg p-4 border-2 border-green-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                              {getInitials(candidate.name)}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-bold text-gray-800">{candidate.name}</h3>
+                              <p className="text-sm text-gray-600">{candidate.city}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1 text-sm text-gray-600 mb-3">
+                            <p>📱 {candidate.phone}</p>
+                            <p>🎂 {candidate.age} years</p>
+                            <p>⏰ {candidate.availability}</p>
+                          </div>
+
+                          {/* Rating for this event */}
+                          {jobRating !== null && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-2">
+                              <p className="text-xs text-yellow-700 font-semibold">Your Rating:</p>
+                              <p className="text-sm text-yellow-600">{"⭐".repeat(jobRating)} ({jobRating}/5)</p>
+                            </div>
+                          )}
+
+                          {/* Red flags for this event */}
+                          {jobFlags.length > 0 && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-2 mb-2">
+                              <p className="text-xs text-red-700 font-semibold">🚩 Red Flag:</p>
+                              <p className="text-xs text-red-600">{jobFlags[0].reason}</p>
+                            </div>
+                          )}
+
+                          <p className="text-xs text-green-600 mt-2 font-semibold">
+                            Click for full details →
+                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowHistoryModal(false)}
+              className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg"
             >
               Close
             </button>
