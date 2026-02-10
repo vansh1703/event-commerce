@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiCall } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,29 +14,53 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await apiCall("/auth/company/login", {
+      // Check if SuperAdmin
+      if (email === "admin@eventhire.com" && password === "SuperAdmin@2026") {
+        const superAdminUser = {
+          id: 'superadmin',
+          email: "admin@eventhire.com",
+          user_type: "superadmin",
+          company_name: "SuperAdmin",
+        };
+        
+        localStorage.setItem("currentUser", JSON.stringify(superAdminUser));
+        alert("Welcome SuperAdmin! 👑");
+        
+        setTimeout(() => {
+          router.push("/superadmin/dashboard");
+        }, 100);
+        return;
+      }
+
+      // Regular company login
+      const res = await fetch("/api/auth/company/login", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ email, password }),
       });
 
-      if (data.success) {
-        // Store user in localStorage for session
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid credentials");
+      }
+
+      if (data.success && data.user) {
         localStorage.setItem("currentUser", JSON.stringify(data.user));
-
-        alert(
-          data.user.user_type === "superadmin"
-            ? "Welcome SuperAdmin! 👑"
-            : "Login Successful!"
-        );
-
-        if (data.user.user_type === "superadmin") {
-          router.push("/superadmin/dashboard");
-        } else {
+        
+        console.log("User stored:", data.user);
+        
+        alert("Login Successful!");
+        
+        setTimeout(() => {
           router.push("/company/dashboard");
-        }
+        }, 100);
       }
     } catch (error: any) {
       alert(error.message || "Login failed");
+      console.error("Login error:", error);
     } finally {
       setLoading(false);
     }

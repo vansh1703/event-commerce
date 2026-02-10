@@ -1,18 +1,16 @@
-// app/api/jobs/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { data, error } = await supabase
+    const { data: jobs, error } = await supabaseAdmin
       .from('jobs')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('date', { ascending: true });
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, jobs: data || [] });
+    return NextResponse.json({ success: true, jobs });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

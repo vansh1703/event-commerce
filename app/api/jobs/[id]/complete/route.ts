@@ -1,14 +1,14 @@
-// app/api/jobs/[id]/complete/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error } = await supabase
+    const params = await context.params;
+
+    const { error } = await supabaseAdmin
       .from('jobs')
       .update({ completed: true })
       .eq('id', params.id);

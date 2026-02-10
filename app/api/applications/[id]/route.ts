@@ -1,34 +1,37 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// PATCH - Update status
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { status } = await request.json();
 
-    const { error } = await supabase
+    const { data: application, error } = await supabaseAdmin
       .from('applications')
       .update({ status })
-      .eq('id', params.id);
+      .eq('id', params.id)
+      .select()
+      .single();
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, application });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// DELETE - Withdraw application
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error } = await supabase
+    const params = await context.params;
+
+    const { error } = await supabaseAdmin
       .from('applications')
       .delete()
       .eq('id', params.id);

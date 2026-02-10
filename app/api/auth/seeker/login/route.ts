@@ -1,13 +1,11 @@
-// app/api/auth/seeker/login/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
-    const { data: user, error } = await supabase
+    const { data: user, error } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('email', email)
@@ -19,7 +17,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, user });
+    return NextResponse.json({ 
+      success: true, 
+      user: {
+        id: user.id,
+        email: user.email,
+        user_type: user.user_type,
+        full_name: user.full_name,
+        phone: user.phone,
+      }
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

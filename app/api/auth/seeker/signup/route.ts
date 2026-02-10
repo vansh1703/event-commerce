@@ -1,25 +1,23 @@
-// app/api/auth/seeker/signup/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: Request) {
   try {
     const { name, email, password, phone } = await request.json();
 
     // Check if exists
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return NextResponse.json({ error: 'Account already exists' }, { status: 400 });
     }
 
     // Create user
-    const { data: user, error } = await supabase
+    const { data: user, error } = await supabaseAdmin
       .from('users')
       .insert({
         email,

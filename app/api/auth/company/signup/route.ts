@@ -5,33 +5,42 @@ export async function POST(request: Request) {
   try {
     const { companyName, email, password } = await request.json();
 
-    // Use Supabase Auth to create user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        company_name: companyName,
-        user_type: 'company'
-      }
-    });
+    console.log('Signup attempt:', { companyName, email });
 
-    if (authError) throw authError;
+    // Check if exists
+    const { data: existing, error: checkError } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
 
-    // Also store in users table
+    if (checkError) {
+      console.error('Check error:', checkError);
+      throw checkError;
+    }
+
+    if (existing) {
+      return NextResponse.json({ error: 'Account already exists' }, { status: 400 });
+    }
+
+    // Create user
     const { data: user, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
-        id: authData.user.id, // Use auth user ID
         email,
-        password, // Or hash it first
+        password,
         user_type: 'company',
         company_name: companyName,
       })
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('Insert error:', insertError);
+      throw insertError;
+    }
+
+    console.log('User created:', user);
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {

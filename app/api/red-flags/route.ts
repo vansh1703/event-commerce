@@ -1,53 +1,61 @@
-// app/api/red-flags/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: Request) {
   try {
     const { seekerId, jobId, jobTitle, reason } = await request.json();
 
-    const { data, error } = await supabase
+    // Add red flag
+    const { data: redFlag, error } = await supabaseAdmin
       .from('red_flags')
       .insert({
         seeker_id: seekerId,
         job_id: jobId,
         job_title: jobTitle,
         reason,
-        date: new Date().toLocaleDateString(),
+        date: new Date().toISOString(),
       })
       .select()
       .single();
 
-    if (error) {
-      if (error.code === '23505') {
-        return NextResponse.json(
-          { error: 'You have already flagged this seeker for this job' },
-          { status: 400 }
-        );
-      }
-      throw error;
-    }
+    if (error) throw error;
 
-    // Check if should ban (3+ flags)
-    const { data: allFlags } = await supabase
+    // Count total red flags
+    const { data: allFlags } = await supabaseAdmin
       .from('red_flags')
       .select('*')
       .eq('seeker_id', seekerId);
 
+    // If 3 or more red flags, ban for 30 days
     if (allFlags && allFlags.length >= 3) {
-      const banDate = new Date();
-      banDate.setDate(banDate.getDate() + 30);
+      const bannedUntil = new Date();
+      bannedUntil.setDate(bannedUntil.getDate() + 30);
 
-      await supabase
+      // Check if already banned
+      const { data: existingBan } = await supabaseAdmin
         .from('seeker_bans')
-        .upsert({
-          seeker_id: seekerId,
-          banned_until: banDate.toISOString(),
-        });
+        .select('*')
+        .eq('seeker_id', seekerId)
+        .maybeSingle();
+
+      if (existingBan) {
+        // Update existing ban
+        await supabaseAdmin
+          .from('seeker_bans')
+          .update({ banned_until: bannedUntil.toISOString() })
+          .eq('seeker_id', seekerId);
+      } else {
+        // Create new ban
+        await supabaseAdmin
+          .from('seeker_bans')
+          .insert({
+            seeker_id: seekerId,
+            banned_until: bannedUntil.toISOString(),
+          });
+      }
     }
 
-    return NextResponse.json({ success: true, redFlag: data });
+    return NextResponse.json({ success: true, redFlag });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

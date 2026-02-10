@@ -1,36 +1,40 @@
-// app/api/seekers/[id]/stats/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
+    const seekerId = params.id;
+
     // Get ratings
-    const { data: ratings } = await supabase
+    const { data: ratings } = await supabaseAdmin
       .from('ratings')
       .select('*')
-      .eq('seeker_id', params.id);
+      .eq('seeker_id', seekerId)
+      .order('date', { ascending: false });
 
     // Get red flags
-    const { data: redFlags } = await supabase
+    const { data: redFlags } = await supabaseAdmin
       .from('red_flags')
       .select('*')
-      .eq('seeker_id', params.id);
+      .eq('seeker_id', seekerId)
+      .order('date', { ascending: false });
 
     // Get ban status
-    const { data: ban } = await supabase
+    const { data: ban } = await supabaseAdmin
       .from('seeker_bans')
       .select('*')
-      .eq('seeker_id', params.id)
-      .single();
+      .eq('seeker_id', seekerId)
+      .maybeSingle();
 
+    // Calculate average rating
     const avgRating =
       ratings && ratings.length > 0
         ? (ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length).toFixed(1)
-        : 0;
+        : '0';
 
     const isBanned = ban ? new Date(ban.banned_until) > new Date() : false;
 
@@ -46,6 +50,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
+    console.error('Stats error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

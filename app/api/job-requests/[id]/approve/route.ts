@@ -1,22 +1,25 @@
-// app/api/job-requests/[id]/approve/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { finalTitle, finalPayment, finalDescription, postedBy, requestData } = await request.json();
 
+    console.log('Approving request:', params.id);
+    console.log('Request data:', requestData);
+
     // Create job
-    const { data: job, error: jobError } = await supabase
+    const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
       .insert({
         request_id: params.id,
         company_id: requestData.company_id,
         company_name: requestData.company_name,
+        company_email: requestData.company_email,
         created_by: postedBy,
         title: finalTitle,
         event_type: requestData.event_type,
@@ -32,10 +35,15 @@ export async function POST(
       .select()
       .single();
 
-    if (jobError) throw jobError;
+    if (jobError) {
+      console.error('Job creation error:', jobError);
+      throw jobError;
+    }
+
+    console.log('Job created:', job);
 
     // Update request status
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('job_requests')
       .update({
         status: 'approved',
@@ -43,10 +51,16 @@ export async function POST(
       })
       .eq('id', params.id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Update request error:', updateError);
+      throw updateError;
+    }
+
+    console.log('Request updated to approved');
 
     return NextResponse.json({ success: true, job });
   } catch (error: any) {
+    console.error('Approve error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiCall } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -11,42 +10,12 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // const handleSignup = async (e: React.FormEvent) => {
-
-  //   e.preventDefault();
-  //   setLoading(true);
-
-  //   try {
-  //     // const data = await apiCall('/auth/company/signup', {
-  //     //   method: 'POST',
-  //     //   body: JSON.stringify({ companyName, email, password }),
-  //     // });
-  //     const data = await fetch("api/auth/company/signup", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({ companyName, email, password }),
-  //     })
-  //     console.log(data);
-      
-  //     if (data.success) {
-  //       alert("Signup Successful! Please login.");
-  //       router.push("/auth/login");
-  //     }
-  //   } catch (error: any) {
-  //     alert(error.message || 'Signup failed');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/company/signup", {  // <-- FIXED: Added /api
+      const res = await fetch("/api/auth/company/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -117,11 +86,11 @@ export default function SignupPage() {
             />
           </div>
 
-          <button 
+          <button
             disabled={loading}
             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
           >
-            {loading ? 'Creating account...' : 'Sign Up'}
+            {loading ? "Creating account..." : "Sign Up"}
           </button>
         </form>
 

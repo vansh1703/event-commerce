@@ -3,49 +3,51 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import LogoutButton from "@/components/navbar/LogoutButton";
-import { checkSuperAdminAuth } from "@/lib/auth";
+import { apiCall } from "@/lib/api";
 
 type JobRequest = {
   id: string;
-  companyEmail: string;
-  companyName: string;
+  company_id: string;
+  company_name: string;
+  company_email: string;
   title: string;
-  eventType: string;
+  event_type: string;
   location: string;
-  helpersNeeded: number;
-  date: string;
-  time: string;
-  paymentOffered: string;
+  helpers_needed: number;
+  event_date: string;
+  event_time: string;
+  payment_offered: string;
   description: string;
-  contactPhone: string;
+  contact_phone: string;
   status: "pending" | "approved" | "rejected";
-  submittedAt: string;
-  rejectionReason?: string;
-  approvedJobId?: string;
+  submitted_at: string;
+  rejection_reason?: string;
+  approved_job_id?: string;
 };
 
 type Job = {
   id: string;
-  requestId: string;
-  companyEmail: string;
-  companyName: string;
-  postedBy: string;
+  request_id: string;
+  company_id: string;
+  company_name: string;
+  company_email: string;
+  created_by: string;
   title: string;
-  eventType: string;
+  event_type: string;
   location: string;
-  helpersNeeded: number;
+  helpers_needed: number;
   date: string;
   time: string;
   payment: string;
   description: string;
-  contactPhone: string;
-  completed?: boolean;
-  createdAt: string;
+  contact_phone: string;
+  completed: boolean;
+  created_at: string;
 };
 
 type Application = {
-  jobId: string;
-  name: string;
+  id: string;
+  job_id: string;
   status: "pending" | "accepted" | "rejected";
 };
 
@@ -54,11 +56,14 @@ export default function SuperAdminDashboard() {
   const [pendingRequests, setPendingRequests] = useState<JobRequest[]>([]);
   const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [allRequests, setAllRequests] = useState<JobRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<JobRequest | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
   // For posting job after approval
   const [finalTitle, setFinalTitle] = useState("");
@@ -66,7 +71,17 @@ export default function SuperAdminDashboard() {
   const [finalDescription, setFinalDescription] = useState("");
 
   useEffect(() => {
-    if (!checkSuperAdminAuth()) {
+    const user = localStorage.getItem("currentUser");
+
+    if (!user) {
+      alert("Unauthorized! SuperAdmin access only.");
+      router.push("/auth/login");
+      return;
+    }
+
+    const parsedUser = JSON.parse(user);
+
+    if (parsedUser.user_type !== "superadmin") {
       alert("Unauthorized! SuperAdmin access only.");
       router.push("/auth/login");
       return;
@@ -75,119 +90,124 @@ export default function SuperAdminDashboard() {
     loadData();
   }, [router]);
 
-  const loadData = () => {
-    // Load pending requests
-    const allRequests: JobRequest[] = JSON.parse(
-      localStorage.getItem("jobRequests") || "[]"
-    );
-    const pending = allRequests.filter((req) => req.status === "pending");
-    setPendingRequests(pending);
+  const loadData = async () => {
+    try {
+      // Load job requests
+      const requestsData = await apiCall('/job-requests', { method: 'GET' });
 
-    // Load my posted jobs
-    const allJobs: Job[] = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const activeJobs = allJobs.filter(
-      (job) => !job.completed && new Date(job.date) >= new Date()
-    );
-    setMyJobs(activeJobs);
+      if (requestsData.success) {
+        const pending = requestsData.jobRequests.filter(
+          (req: JobRequest) => req.status === "pending"
+        );
+        setPendingRequests(pending);
+        setAllRequests(requestsData.jobRequests);
+      }
 
-    // Load applications
-    const allApplications = JSON.parse(
-      localStorage.getItem("applications") || "[]"
-    );
-    setApplications(allApplications);
+      // Load jobs
+      const jobsData = await apiCall('/jobs', { method: 'GET' });
+
+      if (jobsData.success) {
+        const activeJobs = jobsData.jobs.filter(
+          (job: Job) => !job.completed && new Date(job.date) >= new Date()
+        );
+        setMyJobs(activeJobs);
+      }
+
+      // Load applications
+      const appsData = await apiCall('/applications', { method: 'GET' });
+
+      if (appsData.success) {
+        setApplications(appsData.applications);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openApprovalModal = (request: JobRequest) => {
     setSelectedRequest(request);
     setFinalTitle(request.title);
-    setFinalPayment(request.paymentOffered); // Pre-fill, admin can adjust
+    setFinalPayment(request.payment_offered);
     setFinalDescription(request.description);
     setShowApprovalModal(true);
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!selectedRequest || !finalTitle || !finalPayment) {
       alert("Please fill all required fields!");
       return;
     }
 
-    // Create the actual job
-    const newJob: Job = {
-      id: Date.now().toString(),
-      requestId: selectedRequest.id,
-      companyEmail: selectedRequest.companyEmail,
-      companyName: selectedRequest.companyName,
-      postedBy: "admin@eventhire.com",
-      title: finalTitle,
-      eventType: selectedRequest.eventType,
-      location: selectedRequest.location,
-      helpersNeeded: selectedRequest.helpersNeeded,
-      date: selectedRequest.date,
-      time: selectedRequest.time,
-      payment: finalPayment,
-      description: finalDescription,
-      contactPhone: selectedRequest.contactPhone,
-      completed: false,
-      createdAt: new Date().toLocaleDateString(),
-    };
+    setProcessing(true);
 
-    // Save job
-    const oldJobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    localStorage.setItem("jobs", JSON.stringify([...oldJobs, newJob]));
+    try {
+      const data = await apiCall(`/job-requests/${selectedRequest.id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({
+          finalTitle,
+          finalPayment,
+          finalDescription,
+          postedBy: 'admin@eventhire.com',
+          requestData: selectedRequest,
+        }),
+      });
 
-    // Update request status
-    const allRequests = JSON.parse(localStorage.getItem("jobRequests") || "[]");
-    const updatedRequests = allRequests.map((req: JobRequest) => {
-      if (req.id === selectedRequest.id) {
-        return {
-          ...req,
-          status: "approved" as const,
-          approvedJobId: newJob.id,
-        };
+      if (data.success) {
+        alert("✅ Job approved and posted successfully!");
+        setShowApprovalModal(false);
+        setSelectedRequest(null);
+        await loadData();
       }
-      return req;
-    });
-    localStorage.setItem("jobRequests", JSON.stringify(updatedRequests));
-
-    alert("✅ Job approved and posted successfully!");
-    setShowApprovalModal(false);
-    setSelectedRequest(null);
-    loadData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to approve job');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedRequest || !rejectionReason.trim()) {
       alert("Please provide a rejection reason!");
       return;
     }
 
-    const allRequests = JSON.parse(localStorage.getItem("jobRequests") || "[]");
-    const updatedRequests = allRequests.map((req: JobRequest) => {
-      if (req.id === selectedRequest.id) {
-        return {
-          ...req,
-          status: "rejected" as const,
-          rejectionReason,
-        };
+    setProcessing(true);
+
+    try {
+      const data = await apiCall(`/job-requests/${selectedRequest.id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ rejectionReason }),
+      });
+
+      if (data.success) {
+        alert("Request rejected.");
+        setShowRejectModal(false);
+        setSelectedRequest(null);
+        setRejectionReason("");
+        await loadData();
       }
-      return req;
-    });
-    localStorage.setItem("jobRequests", JSON.stringify(updatedRequests));
-
-    alert("Request rejected.");
-    setShowRejectModal(false);
-    setSelectedRequest(null);
-    setRejectionReason("");
-    loadData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to reject request');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const getAllJobRequests = () => {
-    return JSON.parse(localStorage.getItem("jobRequests") || "[]");
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const getAllJobs = () => {
-    return JSON.parse(localStorage.getItem("jobs") || "[]");
-  };
+  const pendingAppsCount = applications.filter((app) => app.status === "pending").length;
+  const acceptedAppsCount = applications.filter((app) => app.status === "accepted").length;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
@@ -222,15 +242,11 @@ export default function SuperAdminDashboard() {
           <p className="text-blue-600 font-semibold">Active Jobs</p>
         </div>
         <div className="bg-green-100 border-2 border-green-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-green-700">
-            {applications.filter((app) => app.status === "pending").length}
-          </p>
+          <p className="text-3xl font-bold text-green-700">{pendingAppsCount}</p>
           <p className="text-green-600 font-semibold">Pending Applications</p>
         </div>
         <div className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-purple-700">
-            {applications.filter((app) => app.status === "accepted").length}
-          </p>
+          <p className="text-3xl font-bold text-purple-700">{acceptedAppsCount}</p>
           <p className="text-purple-600 font-semibold">Accepted Candidates</p>
         </div>
       </div>
@@ -238,9 +254,11 @@ export default function SuperAdminDashboard() {
       {/* All Requests History */}
       {showHistory && (
         <div className="max-w-6xl mx-auto mb-8 bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">All Job Requests History</h3>
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">
+            All Job Requests History
+          </h3>
           <div className="max-h-96 overflow-y-auto space-y-2">
-            {getAllJobRequests().map((request: JobRequest) => (
+            {allRequests.map((request: JobRequest) => (
               <div
                 key={request.id}
                 className="flex justify-between items-center p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200"
@@ -248,10 +266,10 @@ export default function SuperAdminDashboard() {
                 <div className="flex-1">
                   <h4 className="font-semibold text-gray-800">{request.title}</h4>
                   <p className="text-sm text-gray-600">
-                    {request.companyName} • {request.date}
+                    {request.company_name} • {request.event_date}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Offered: {request.paymentOffered}
+                    Offered: {request.payment_offered}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -300,11 +318,9 @@ export default function SuperAdminDashboard() {
                       <h3 className="text-xl font-bold text-gray-800">
                         {request.title}
                       </h3>
-                      <p className="text-sm text-gray-600">
-                        🏢 {request.companyName}
-                      </p>
+                      <p className="text-sm text-gray-600">🏢 {request.company_name}</p>
                       <p className="text-sm text-gray-500">
-                        Submitted: {request.submittedAt}
+                        Submitted: {request.submitted_at}
                       </p>
                     </div>
                     <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
@@ -314,21 +330,22 @@ export default function SuperAdminDashboard() {
 
                   <div className="space-y-2 text-sm mb-4">
                     <p className="text-gray-600">
-                      <span className="font-medium">Type:</span> {request.eventType}
+                      <span className="font-medium">Type:</span> {request.event_type}
                     </p>
                     <p className="text-gray-600">
                       <span className="font-medium">Location:</span> {request.location}
                     </p>
                     <p className="text-gray-600">
-                      <span className="font-medium">Date:</span> {request.date} at{" "}
-                      {request.time}
+                      <span className="font-medium">Date:</span> {request.event_date} at{" "}
+                      {request.event_time}
                     </p>
                     <p className="text-gray-600">
-                      <span className="font-medium">Helpers:</span> {request.helpersNeeded}
+                      <span className="font-medium">Helpers:</span>{" "}
+                      {request.helpers_needed}
                     </p>
                     <p className="text-gray-800 font-bold">
                       <span className="font-medium">Payment Offered:</span>{" "}
-                      {request.paymentOffered}
+                      {request.payment_offered}
                     </p>
                   </div>
 
@@ -369,7 +386,7 @@ export default function SuperAdminDashboard() {
             <div className="space-y-4">
               {myJobs.map((job) => {
                 const jobApplicants = applications.filter(
-                  (app) => app.jobId === job.id
+                  (app) => app.job_id === job.id
                 );
                 const pendingCount = jobApplicants.filter(
                   (app) => app.status === "pending"
@@ -388,7 +405,7 @@ export default function SuperAdminDashboard() {
                       {job.title}
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">
-                      🏢 {job.companyName} • {job.date}
+                      🏢 {job.company_name} • {job.date}
                     </p>
 
                     <div className="flex gap-2 mb-3">
@@ -425,13 +442,13 @@ export default function SuperAdminDashboard() {
             <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 mb-6">
               <h3 className="font-bold text-blue-800 mb-2">Original Request:</h3>
               <p className="text-sm text-blue-700">
-                Company: {selectedRequest.companyName}
+                Company: {selectedRequest.company_name}
               </p>
               <p className="text-sm text-blue-700">
-                Payment Offered: {selectedRequest.paymentOffered}
+                Payment Offered: {selectedRequest.payment_offered}
               </p>
               <p className="text-sm text-blue-700">
-                Helpers: {selectedRequest.helpersNeeded}
+                Helpers: {selectedRequest.helpers_needed}
               </p>
             </div>
 
@@ -451,13 +468,14 @@ export default function SuperAdminDashboard() {
                     value={finalTitle}
                     onChange={(e) => setFinalTitle(e.target.value)}
                     required
+                    disabled={processing}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Payment to Post (Your Cut: Offer less than{" "}
-                    {selectedRequest.paymentOffered})
+                    {selectedRequest.payment_offered})
                   </label>
                   <input
                     type="text"
@@ -466,9 +484,10 @@ export default function SuperAdminDashboard() {
                     onChange={(e) => setFinalPayment(e.target.value)}
                     placeholder="e.g., ₹1500/day"
                     required
+                    disabled={processing}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    💡 Tip: Company offered {selectedRequest.paymentOffered}. You can
+                    💡 Tip: Company offered {selectedRequest.payment_offered}. You can
                     post it lower to keep the difference as profit.
                   </p>
                 </div>
@@ -482,6 +501,7 @@ export default function SuperAdminDashboard() {
                     value={finalDescription}
                     onChange={(e) => setFinalDescription(e.target.value)}
                     required
+                    disabled={processing}
                   />
                 </div>
               </div>
@@ -494,14 +514,16 @@ export default function SuperAdminDashboard() {
                   setSelectedRequest(null);
                 }}
                 className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl hover:bg-gray-300 transition-all font-semibold"
+                disabled={processing}
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-lg"
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-lg disabled:opacity-50"
+                disabled={processing}
               >
-                Approve & Post Job
+                {processing ? 'Approving...' : 'Approve & Post Job'}
               </button>
             </div>
           </div>
@@ -523,6 +545,7 @@ export default function SuperAdminDashboard() {
               className="w-full border-2 border-gray-200 p-4 rounded-2xl min-h-[120px] bg-white focus:outline-none focus:ring-2 focus:ring-red-400 resize-none text-gray-800"
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
+              disabled={processing}
             />
             <div className="flex gap-3 mt-6">
               <button
@@ -532,14 +555,16 @@ export default function SuperAdminDashboard() {
                   setRejectionReason("");
                 }}
                 className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl hover:bg-gray-300 transition-all font-semibold"
+                disabled={processing}
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
-                className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg"
+                className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg disabled:opacity-50"
+                disabled={processing}
               >
-                Reject Request
+                {processing ? 'Rejecting...' : 'Reject Request'}
               </button>
             </div>
           </div>

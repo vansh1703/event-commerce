@@ -1,25 +1,12 @@
-// app/api/applications/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// POST - Create application
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const {
-      jobId,
-      seekerId,
-      name,
-      phone,
-      age,
-      city,
-      experience,
-      availability,
-    } = body;
+    const { jobId, seekerId, name, phone, age, city, experience, availability } = await request.json();
 
-    // Check if banned
-    const { data: ban } = await supabase
+    // Check if seeker is banned
+    const { data: ban } = await supabaseAdmin
       .from('seeker_bans')
       .select('*')
       .eq('seeker_id', seekerId)
@@ -32,7 +19,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    // Check if already applied
+    const { data: existing } = await supabaseAdmin
+      .from('applications')
+      .select('*')
+      .eq('job_id', jobId)
+      .eq('seeker_id', seekerId)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'You have already applied for this job' },
+        { status: 400 }
+      );
+    }
+
+    // Create application
+    const { data: application, error } = await supabaseAdmin
       .from('applications')
       .insert({
         job_id: jobId,
@@ -49,30 +52,22 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) {
-      if (error.code === '23505') {
-        return NextResponse.json(
-          { error: 'You have already applied for this job' },
-          { status: 400 }
-        );
-      }
-      throw error;
-    }
+    if (error) throw error;
 
-    return NextResponse.json({ success: true, application: data });
+    return NextResponse.json({ success: true, application });
   } catch (error: any) {
+    console.error('Application error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// GET - Get applications
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
     const seekerId = searchParams.get('seekerId');
 
-    let query = supabase.from('applications').select('*');
+    let query = supabaseAdmin.from('applications').select('*');
 
     if (jobId) {
       query = query.eq('job_id', jobId);
@@ -82,11 +77,11 @@ export async function GET(request: Request) {
       query = query.eq('seeker_id', seekerId);
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data: applications, error } = await query.order('applied_at', { ascending: false });
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, applications: data || [] });
+    return NextResponse.json({ success: true, applications });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

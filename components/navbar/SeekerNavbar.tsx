@@ -1,143 +1,88 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import SeekerLogoutButton from "./SeekerLogoutButton";
 import { useEffect, useState } from "react";
-
-type Rating = {
-  stars: number;
-  jobTitle: string;
-  date: string;
-};
-
-type RedFlag = {
-  date: string;
-  reason: string;
-  jobTitle: string;
-};
-
-type SeekerProfile = {
-  name: string;
-  email: string;
-  password: string;
-  phone: string;
-  redFlags: RedFlag[];
-  ratings: Rating[];
-  bannedUntil: string | null;
-};
+import { useRouter } from "next/navigation";
+import SeekerLogoutButton from "./SeekerLogoutButton";
 
 export default function SeekerNavbar() {
-  const pathname = usePathname();
+  const router = useRouter();
+  const [stats, setStats] = useState<any>(null);
   const [seekerUser, setSeekerUser] = useState<any>(null);
-  const [avgRating, setAvgRating] = useState<string>("0");
-  const [redFlagCount, setRedFlagCount] = useState(0);
 
   useEffect(() => {
-    const user = localStorage.getItem("seekerUser");
-    if (user) {
-      const parsedUser = JSON.parse(user);
-      setSeekerUser(parsedUser);
-
-      // Get stats from seeker accounts
-      const seekerAccounts: SeekerProfile[] = JSON.parse(
-        localStorage.getItem("seekerAccounts") || "[]"
-      );
-
-      const profile = seekerAccounts.find((acc) => acc.name === parsedUser.name);
-
-      if (profile) {
-        const ratings = profile.ratings || [];
-        const avg =
-          ratings.length > 0
-            ? ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length
-            : 0;
-        setAvgRating(avg > 0 ? avg.toFixed(1) : "0");
-        setRedFlagCount(profile.redFlags?.length || 0);
-      }
-    }
+    loadStats();
   }, []);
 
-  if (!seekerUser) return null;
+  const loadStats = async () => {
+    const user = localStorage.getItem("seekerUser");
+    if (!user) return;
 
-  // Get initials for avatar
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+    const parsedUser = JSON.parse(user);
+    setSeekerUser(parsedUser);
+
+    try {
+      const res = await fetch(`/api/seekers/${parsedUser.id}/stats`, {
+        method: 'GET',
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
   };
 
   return (
-    <nav className="w-full bg-white/90 backdrop-blur-xl shadow-lg px-4 md:px-6 py-4 rounded-3xl mb-8 border border-white/20 sticky top-4 z-50">
-      <div className="max-w-6xl mx-auto flex justify-between items-center">
-        {/* Left: Profile */}
-        <div className="flex items-center gap-3">
-          {/* Avatar */}
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm md:text-base shadow-lg">
-            {getInitials(seekerUser.name)}
-          </div>
-          {/* Name & Stats - Hidden on mobile */}
-          <div className="hidden md:block">
-            <p className="font-semibold text-gray-800">{seekerUser.name}</p>
-            <div className="flex gap-3 text-xs text-gray-600">
-              <span className="flex items-center gap-1">
-                ⭐ <span className="font-semibold">{avgRating}</span>
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+      <div className="flex-1">
+        <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Hello, {seekerUser?.full_name || "Job Seeker"}! 👋
+        </h1>
+        {stats && (
+          <div className="flex gap-4 mt-2 text-sm flex-wrap">
+            <span className="text-gray-600">
+              ⭐ Rating:{" "}
+              <span className="font-semibold">
+                {stats.avgRating > 0 ? stats.avgRating : "No ratings yet"}
               </span>
-              <span className={`flex items-center gap-1 ${redFlagCount > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                🚩 <span>{redFlagCount}</span>
-              </span>
-            </div>
+            </span>
+            <span
+              className={`${
+                stats.redFlagCount > 0 ? "text-red-600 font-semibold" : "text-gray-600"
+              }`}
+            >
+              🚩 Red Flags: <span className="font-semibold">{stats.redFlagCount}</span>
+            </span>
+            {stats.isBanned && (
+              <span className="text-red-600 font-bold">🚫 BANNED</span>
+            )}
           </div>
-        </div>
-
-        {/* Center: Navigation Links */}
-        <div className="flex gap-3 md:gap-6 font-semibold text-sm md:text-base">
-          <Link
-            href="/events"
-            className={`${
-              pathname === "/events"
-                ? "text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text"
-                : "text-gray-700"
-            } hover:text-transparent hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:bg-clip-text transition-all duration-300`}
-          >
-            Browse Jobs
-          </Link>
-
-          <Link
-            href="/my-applications"
-            className={`${
-              pathname === "/my-applications"
-                ? "text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text"
-                : "text-gray-700"
-            } hover:text-transparent hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:bg-clip-text transition-all duration-300`}
-          >
-            My Applications
-          </Link>
-        </div>
-
-        {/* Right: Logout */}
-        <div className="hidden md:block">
-          <SeekerLogoutButton />
-        </div>
-
-        {/* Mobile: Logout Icon */}
-        <div className="md:hidden">
-          <SeekerLogoutButton />
-        </div>
+        )}
       </div>
 
-      {/* Mobile Stats Bar */}
-      <div className="md:hidden mt-3 pt-3 border-t border-gray-200 flex justify-center gap-6 text-sm">
-        <span className="flex items-center gap-1">
-          ⭐ <span className="font-semibold">{avgRating}</span> Rating
-        </span>
-        <span className={`flex items-center gap-1 ${redFlagCount > 0 ? 'text-red-600 font-semibold' : ''}`}>
-          🚩 <span>{redFlagCount}</span> Flags
-        </span>
+      <div className="flex gap-2 md:gap-3 flex-wrap">
+        <button
+          onClick={() => router.push("/events")}
+          className="bg-white text-indigo-600 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl border-2 border-indigo-600 hover:bg-indigo-50 transition-all duration-300 font-semibold text-sm md:text-base"
+        >
+          Browse Jobs
+        </button>
+        <button
+          onClick={() => router.push("/my-applications")}
+          className="bg-white text-purple-600 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl border-2 border-purple-600 hover:bg-purple-50 transition-all duration-300 font-semibold text-sm md:text-base"
+        >
+          My Applications
+        </button>
+        <button
+          onClick={() => router.push("/completed-events")}
+          className="bg-white text-green-600 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl border-2 border-green-600 hover:bg-green-50 transition-all duration-300 font-semibold text-sm md:text-base"
+        >
+          History
+        </button>
+        <SeekerLogoutButton />
       </div>
-    </nav>
+    </div>
   );
 }

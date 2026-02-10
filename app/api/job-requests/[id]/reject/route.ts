@@ -1,16 +1,15 @@
-// app/api/job-requests/[id]/reject/route.ts
-
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const { rejectionReason } = await request.json();
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('job_requests')
       .update({
         status: 'rejected',

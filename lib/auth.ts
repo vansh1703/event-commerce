@@ -1,5 +1,3 @@
-// lib/auth.ts
-
 export const SUPERADMIN_EMAIL = "admin@eventhire.com";
 export const SUPERADMIN_PASSWORD = "SuperAdmin@2026";
 
@@ -8,7 +6,7 @@ export const isSuperAdmin = (email: string): boolean => {
 };
 
 export const checkSuperAdminAuth = (): boolean => {
-  const user = localStorage.getItem("posterUser");
+  const user = localStorage.getItem("currentUser");
   if (!user) return false;
   
   const parsedUser = JSON.parse(user);

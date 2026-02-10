@@ -3,130 +3,160 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import LogoutButton from "@/components/navbar/LogoutButton";
+import { apiCall } from "@/lib/api";
 import * as XLSX from 'xlsx';
 
 type JobRequest = {
   id: string;
-  companyEmail: string;
-  companyName: string;
+  company_id: string;
+  company_name: string;
+  company_email: string;
   title: string;
-  eventType: string;
+  event_type: string;
   location: string;
-  helpersNeeded: number;
-  date: string;
-  time: string;
-  paymentOffered: string;
+  helpers_needed: number;
+  event_date: string;
+  event_time: string;
+  payment_offered: string;
   description: string;
-  contactPhone: string;
+  contact_phone: string;
   status: "pending" | "approved" | "rejected";
-  submittedAt: string;
-  rejectionReason?: string;
-  approvedJobId?: string;
+  submitted_at: string;
+  rejection_reason?: string;
+  approved_job_id?: string;
 };
 
 type Job = {
   id: string;
-  requestId: string;
-  companyEmail: string;
-  companyName: string;
+  request_id: string;
+  company_id: string;
+  company_name: string;
+  company_email: string;
   title: string;
-  eventType: string;
+  event_type: string;
   location: string;
-  helpersNeeded: number;
+  helpers_needed: number;
   date: string;
   time: string;
   payment: string;
   description: string;
-  contactPhone: string;
-  completed?: boolean;
+  contact_phone: string;
+  completed: boolean;
 };
 
 type Application = {
-  jobId: string;
+  id: string;
+  job_id: string;
+  seeker_id: string;
   name: string;
   phone: string;
   age: number;
   city: string;
   experience: string;
   availability: string;
-  appliedAt: string;
+  applied_at: string;
   status: "pending" | "accepted" | "rejected";
 };
 
-type SeekerProfile = {
-  name: string;
-  email: string;
-  phone: string;
-  redFlags: Array<{ date: string; reason: string; jobTitle: string }>;
-  ratings: Array<{ stars: number; jobTitle: string; date: string }>;
+type SeekerStats = {
+  avgRating: string;
+  ratings: Array<{ stars: number; job_title: string; date: string }>;
+  redFlags: Array<{ date: string; reason: string; job_title: string }>;
+  redFlagCount: number;
+  isBanned: boolean;
   bannedUntil: string | null;
 };
 
 export default function CompanyDashboard() {
   const router = useRouter();
-  const [companyEmail, setCompanyEmail] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  
+  const [companyUser, setCompanyUser] = useState<any>(null);
   const [myRequests, setMyRequests] = useState<JobRequest[]>([]);
   const [approvedJobs, setApprovedJobs] = useState<Job[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   
   const [selectedCandidate, setSelectedCandidate] = useState<Application | null>(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
-  const [seekerProfile, setSeekerProfile] = useState<SeekerProfile | null>(null);
+  const [seekerStats, setSeekerStats] = useState<SeekerStats | null>(null);
   
   const [showHistory, setShowHistory] = useState(false);
   const [selectedHistoryJob, setSelectedHistoryJob] = useState<Job | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const user = localStorage.getItem("posterUser");
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const user = localStorage.getItem("currentUser");
+
+    console.log("Dashboard checking auth, found user:", user);
 
     if (!user) {
+      console.log("No user found, redirecting to login");
       router.push("/auth/login");
       return;
     }
 
     const parsedUser = JSON.parse(user);
-    
-    if (parsedUser.role === "superadmin") {
+    console.log("Parsed user:", parsedUser);
+
+    if (parsedUser.user_type === "superadmin") {
+      console.log("SuperAdmin detected, redirecting");
       router.push("/superadmin/dashboard");
       return;
     }
 
-    setCompanyEmail(parsedUser.email);
-    setCompanyName(parsedUser.companyName || "Company");
-    
-    loadData(parsedUser.email);
-  }, [router]);
+    if (parsedUser.user_type !== "company") {
+      console.log("Not a company user, redirecting to login");
+      router.push("/auth/login");
+      return;
+    }
 
-  const loadData = (email: string) => {
-    // Load job requests
-    const allRequests: JobRequest[] = JSON.parse(
-      localStorage.getItem("jobRequests") || "[]"
-    );
-    const myReqs = allRequests.filter((req) => req.companyEmail === email);
-    setMyRequests(myReqs);
-
-    // Load approved jobs - filter out completed ones
-    const allJobs: Job[] = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const myApprovedJobs = allJobs.filter(
-      (job) => job.companyEmail === email && !job.completed && new Date(job.date) >= new Date()
-    );
-    setApprovedJobs(myApprovedJobs);
-
-    // Load applications
-    const allApplications: Application[] = JSON.parse(
-      localStorage.getItem("applications") || "[]"
-    );
-    setApplications(allApplications);
+    console.log("Auth check passed, loading data for:", parsedUser.id);
+    setCompanyUser(parsedUser);
+    await loadData(parsedUser.id);
   };
 
-  const getCompletedJobs = () => {
-    const allJobs: Job[] = JSON.parse(localStorage.getItem("jobs") || "[]");
-    return allJobs.filter(
-      (job) => job.companyEmail === companyEmail && (job.completed || new Date(job.date) < new Date())
-    );
+  const loadData = async (companyId: string) => {
+    try {
+      // Load job requests
+      const requestsData = await apiCall('/job-requests', { method: 'GET' });
+      if (requestsData.success) {
+        const myReqs = requestsData.jobRequests.filter(
+          (req: JobRequest) => req.company_id === companyId
+        );
+        setMyRequests(myReqs);
+      }
+
+      // Load jobs
+      const jobsData = await apiCall('/jobs', { method: 'GET' });
+      if (jobsData.success) {
+        const myJobs = jobsData.jobs.filter((job: Job) => job.company_id === companyId);
+        
+        const active = myJobs.filter(
+          (job: Job) => !job.completed && new Date(job.date) >= new Date()
+        );
+        const completed = myJobs.filter(
+          (job: Job) => job.completed || new Date(job.date) < new Date()
+        );
+        
+        setApprovedJobs(active);
+        setCompletedJobs(completed);
+      }
+
+      // Load applications
+      const appsData = await apiCall('/applications', { method: 'GET' });
+      if (appsData.success) {
+        setApplications(appsData.applications);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openHistoryJobModal = (job: Job) => {
@@ -134,23 +164,27 @@ export default function CompanyDashboard() {
     setShowHistoryModal(true);
   };
 
-  const openCandidateModal = (candidate: Application) => {
+  const openCandidateModal = async (candidate: Application) => {
     setSelectedCandidate(candidate);
     
-    const seekerAccounts: SeekerProfile[] = JSON.parse(
-      localStorage.getItem("seekerAccounts") || "[]"
-    );
-    const profile = seekerAccounts.find(
-      (acc) => acc.name === candidate.name
-    );
-    setSeekerProfile(profile || null);
+    try {
+      const data = await apiCall(`/seekers/${candidate.seeker_id}/stats`, {
+        method: 'GET',
+      });
+
+      if (data.success) {
+        setSeekerStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Error loading seeker stats:', error);
+    }
     
     setShowCandidateModal(true);
   };
 
   const exportCandidates = (jobId: string, jobTitle: string) => {
     const acceptedCandidates = applications.filter(
-      (app) => app.jobId === jobId && app.status === "accepted"
+      (app) => app.job_id === jobId && app.status === "accepted"
     );
     
     if (acceptedCandidates.length === 0) {
@@ -165,7 +199,7 @@ export default function CompanyDashboard() {
       "City": app.city,
       "Availability": app.availability,
       "Experience": app.experience,
-      "Applied On": app.appliedAt,
+      "Applied On": new Date(app.applied_at).toLocaleDateString(),
       "Status": "Accepted"
     }));
 
@@ -186,25 +220,18 @@ export default function CompanyDashboard() {
       .slice(0, 2);
   };
 
-  const getSeekerStats = () => {
-    if (!seekerProfile) return { redFlagCount: 0, avgRating: 0, isBanned: false };
-
-    const redFlagCount = seekerProfile.redFlags?.length || 0;
-    const ratings = seekerProfile.ratings || [];
-    const avgRating =
-      ratings.length > 0
-        ? ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length
-        : 0;
-
-    const isBanned = seekerProfile.bannedUntil
-      ? new Date(seekerProfile.bannedUntil) > new Date()
-      : false;
-
-    return { redFlagCount, avgRating: avgRating.toFixed(1), isBanned };
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const pendingRequests = myRequests.filter((req) => req.status === "pending");
-  const approvedRequests = myRequests.filter((req) => req.status === "approved");
   const rejectedRequests = myRequests.filter((req) => req.status === "rejected");
 
   return (
@@ -213,7 +240,7 @@ export default function CompanyDashboard() {
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {companyName} Dashboard
+            {companyUser?.company_name || "Company"} Dashboard
           </h1>
           <p className="text-gray-600 mt-2">
             Welcome back! Manage your job postings and candidates.
@@ -246,21 +273,19 @@ export default function CompanyDashboard() {
           <p className="text-red-600 font-semibold">Rejected Requests</p>
         </div>
         <div className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-purple-700">
-            {getCompletedJobs().length}
-          </p>
+          <p className="text-3xl font-bold text-purple-700">{completedJobs.length}</p>
           <p className="text-purple-600 font-semibold">Completed Events</p>
         </div>
       </div>
 
       {/* Event History Toggle */}
-      {getCompletedJobs().length > 0 && (
+      {completedJobs.length > 0 && (
         <div className="max-w-6xl mx-auto mb-6">
           <button
             onClick={() => setShowHistory(!showHistory)}
             className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg"
           >
-            {showHistory ? "Hide" : "Show"} Event History ({getCompletedJobs().length})
+            {showHistory ? "Hide" : "Show"} Event History ({completedJobs.length})
           </button>
         </div>
       )}
@@ -270,8 +295,8 @@ export default function CompanyDashboard() {
         <div className="max-w-6xl mx-auto mb-8 bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
           <h3 className="text-2xl font-bold text-gray-800 mb-4">📜 Event History</h3>
           <div className="max-h-96 overflow-y-auto space-y-2">
-            {getCompletedJobs().map((job) => {
-              const jobApplicants = applications.filter((app) => app.jobId === job.id);
+            {completedJobs.map((job) => {
+              const jobApplicants = applications.filter((app) => app.job_id === job.id);
               const acceptedCount = jobApplicants.filter((app) => app.status === "accepted").length;
               
               return (
@@ -282,7 +307,7 @@ export default function CompanyDashboard() {
                 >
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{job.title}</h4>
-                    <p className="text-sm text-gray-600">{job.eventType} • {job.location}</p>
+                    <p className="text-sm text-gray-600">{job.event_type} • {job.location}</p>
                     <p className="text-sm text-gray-600">Date: {job.date}</p>
                     <p className="text-sm text-gray-600">
                       {acceptedCount} accepted • {jobApplicants.length} total applicants
@@ -318,7 +343,7 @@ export default function CompanyDashboard() {
                     <div>
                       <h3 className="text-xl font-bold text-gray-800">{req.title}</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        {req.eventType} • {req.location}
+                        {req.event_type} • {req.location}
                       </p>
                     </div>
                     <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
@@ -326,10 +351,10 @@ export default function CompanyDashboard() {
                     </span>
                   </div>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p>📅 {req.date} at {req.time}</p>
-                    <p>👥 {req.helpersNeeded} helpers needed</p>
-                    <p>💰 Offered: {req.paymentOffered}</p>
-                    <p className="text-xs text-gray-500">Submitted: {req.submittedAt}</p>
+                    <p>📅 {req.event_date} at {req.event_time}</p>
+                    <p>👥 {req.helpers_needed} helpers needed</p>
+                    <p>💰 Offered: {req.payment_offered}</p>
+                    <p className="text-xs text-gray-500">Submitted: {req.submitted_at}</p>
                   </div>
                 </div>
               ))}
@@ -353,22 +378,22 @@ export default function CompanyDashboard() {
                     <div>
                       <h3 className="text-xl font-bold text-gray-800">{req.title}</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        {req.eventType} • {req.location}
+                        {req.event_type} • {req.location}
                       </p>
                     </div>
                     <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-semibold">
                       REJECTED
                     </span>
                   </div>
-                  {req.rejectionReason && (
+                  {req.rejection_reason && (
                     <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-3">
                       <p className="text-sm text-red-800 font-semibold mb-1">Rejection Reason:</p>
-                      <p className="text-sm text-red-700">{req.rejectionReason}</p>
+                      <p className="text-sm text-red-700">{req.rejection_reason}</p>
                     </div>
                   )}
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p>📅 {req.date} at {req.time}</p>
-                    <p>💰 Offered: {req.paymentOffered}</p>
+                    <p>📅 {req.event_date} at {req.event_time}</p>
+                    <p>💰 Offered: {req.payment_offered}</p>
                   </div>
                 </div>
               ))}
@@ -397,7 +422,7 @@ export default function CompanyDashboard() {
           ) : (
             <div className="space-y-6">
               {approvedJobs.map((job) => {
-                const jobApplicants = applications.filter((app) => app.jobId === job.id);
+                const jobApplicants = applications.filter((app) => app.job_id === job.id);
                 const acceptedCandidates = jobApplicants.filter((app) => app.status === "accepted");
                 const pendingCandidates = jobApplicants.filter((app) => app.status === "pending");
 
@@ -413,7 +438,7 @@ export default function CompanyDashboard() {
                           {job.title}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {job.eventType} • {job.location} • {job.date} at {job.time}
+                          {job.event_type} • {job.location} • {job.date} at {job.time}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
                           💰 Posted Payment: {job.payment}
@@ -425,7 +450,7 @@ export default function CompanyDashboard() {
                           onClick={() => exportCandidates(job.id, job.title)}
                           className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
                         >
-                          <span className="text-white">📊 Export to Excel</span>
+                          📊 Export to Excel
                         </button>
                       )}
                     </div>
@@ -457,9 +482,9 @@ export default function CompanyDashboard() {
                           Accepted Candidates:
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {acceptedCandidates.map((candidate, index) => (
+                          {acceptedCandidates.map((candidate) => (
                             <div
-                              key={index}
+                              key={candidate.id}
                               onClick={() => openCandidateModal(candidate)}
                               className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-lg p-4 border-2 border-green-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer"
                             >
@@ -515,26 +540,26 @@ export default function CompanyDashboard() {
                 </span>
 
                 {/* Stats */}
-                {seekerProfile && (
+                {seekerStats && (
                   <div className="flex gap-3 mt-3 flex-wrap">
                     <span className="text-sm flex items-center gap-1">
                       ⭐{" "}
                       <span className="font-semibold">
-                        {Number(getSeekerStats().avgRating) > 0
-                          ? getSeekerStats().avgRating
+                        {Number(seekerStats.avgRating) > 0
+                          ? seekerStats.avgRating
                           : "No ratings"}
                       </span>
                     </span>
                     <span
                       className={`text-sm flex items-center gap-1 ${
-                        getSeekerStats().redFlagCount > 0
+                        seekerStats.redFlagCount > 0
                           ? "text-red-600 font-semibold"
                           : ""
                       }`}
                     >
-                      🚩 <span>{getSeekerStats().redFlagCount} Red Flags</span>
+                      🚩 <span>{seekerStats.redFlagCount} Red Flags</span>
                     </span>
-                    {getSeekerStats().isBanned && (
+                    {seekerStats.isBanned && (
                       <span className="text-red-600 font-bold text-sm">
                         🚫 BANNED
                       </span>
@@ -572,19 +597,19 @@ export default function CompanyDashboard() {
 
             {/* Applied Date */}
             <p className="text-sm text-gray-500 mb-6">
-              Applied on: {selectedCandidate.appliedAt}
+              Applied on: {new Date(selectedCandidate.applied_at).toLocaleDateString()}
             </p>
 
             {/* Red Flags (if any) */}
-            {seekerProfile && seekerProfile.redFlags && seekerProfile.redFlags.length > 0 && (
+            {seekerStats && seekerStats.redFlags && seekerStats.redFlags.length > 0 && (
               <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6">
                 <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2">
-                  🚩 Red Flags ({seekerProfile.redFlags.length})
+                  🚩 Red Flags ({seekerStats.redFlags.length})
                 </h3>
                 <div className="space-y-2">
-                  {seekerProfile.redFlags.map((flag, idx) => (
+                  {seekerStats.redFlags.map((flag, idx) => (
                     <div key={idx} className="bg-white rounded-lg p-3 border border-red-200">
-                      <p className="text-sm font-semibold text-red-700">{flag.jobTitle}</p>
+                      <p className="text-sm font-semibold text-red-700">{flag.job_title}</p>
                       <p className="text-sm text-red-600">{flag.reason}</p>
                       <p className="text-xs text-red-500 mt-1">{flag.date}</p>
                     </div>
@@ -594,15 +619,15 @@ export default function CompanyDashboard() {
             )}
 
             {/* Ratings (if any) */}
-            {seekerProfile && seekerProfile.ratings && seekerProfile.ratings.length > 0 && (
+            {seekerStats && seekerStats.ratings && seekerStats.ratings.length > 0 && (
               <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-6">
                 <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
-                  ⭐ Previous Ratings ({seekerProfile.ratings.length})
+                  ⭐ Previous Ratings ({seekerStats.ratings.length})
                 </h3>
                 <div className="space-y-2">
-                  {seekerProfile.ratings.map((rating, idx) => (
+                  {seekerStats.ratings.map((rating, idx) => (
                     <div key={idx} className="bg-white rounded-lg p-3 border border-yellow-200">
-                      <p className="text-sm font-semibold text-yellow-700">{rating.jobTitle}</p>
+                      <p className="text-sm font-semibold text-yellow-700">{rating.job_title}</p>
                       <p className="text-sm text-yellow-600">{"⭐".repeat(rating.stars)} ({rating.stars}/5)</p>
                       <p className="text-xs text-yellow-500 mt-1">{rating.date}</p>
                     </div>
@@ -639,7 +664,7 @@ export default function CompanyDashboard() {
                     {selectedHistoryJob.title}
                   </h2>
                   <p className="text-gray-600">
-                    {selectedHistoryJob.eventType} • {selectedHistoryJob.location}
+                    {selectedHistoryJob.event_type} • {selectedHistoryJob.location}
                   </p>
                   <p className="text-gray-600">
                     📅 {selectedHistoryJob.date} at {selectedHistoryJob.time}
@@ -651,12 +676,12 @@ export default function CompanyDashboard() {
               </div>
 
               {/* Export Button */}
-              {applications.filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted").length > 0 && (
+              {applications.filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted").length > 0 && (
                 <button
                   onClick={() => exportCandidates(selectedHistoryJob.id, selectedHistoryJob.title)}
                   className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2 mb-6"
                 >
-                  <span className="text-white">📊 Export to Excel</span>
+                  📊 Export to Excel
                 </button>
               )}
             </div>
@@ -666,87 +691,52 @@ export default function CompanyDashboard() {
               <h3 className="font-bold text-gray-800 mb-2">Event Description:</h3>
               <p className="text-gray-700">{selectedHistoryJob.description}</p>
               <div className="mt-3 space-y-1 text-sm text-gray-600">
-                <p>👥 Helpers Needed: {selectedHistoryJob.helpersNeeded}</p>
-                <p>📞 Contact: {selectedHistoryJob.contactPhone}</p>
+                <p>👥 Helpers Needed: {selectedHistoryJob.helpers_needed}</p>
+                <p>📞 Contact: {selectedHistoryJob.contact_phone}</p>
               </div>
             </div>
 
             {/* Accepted Candidates Section */}
             <div>
               <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                Accepted Candidates ({applications.filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted").length})
+                Accepted Candidates ({applications.filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted").length})
               </h3>
 
-              {applications.filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted").length === 0 ? (
+              {applications.filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted").length === 0 ? (
                 <div className="bg-gray-50 rounded-2xl p-8 text-center">
                   <p className="text-gray-500">No candidates were accepted for this event.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {applications
-                    .filter((app) => app.jobId === selectedHistoryJob.id && app.status === "accepted")
-                    .map((candidate, index) => {
-                      const seekerAccounts: SeekerProfile[] = JSON.parse(
-                        localStorage.getItem("seekerAccounts") || "[]"
-                      );
-                      const profile = seekerAccounts.find((acc) => acc.name === candidate.name);
-                      
-                      // Get ratings for THIS specific job
-                      const jobRatings = profile?.ratings?.filter(
-                        (r) => r.jobTitle === selectedHistoryJob.title
-                      ) || [];
-                      
-                      const jobRating = jobRatings.length > 0 ? jobRatings[0].stars : null;
-                      
-                      // Get red flags for THIS specific job
-                      const jobFlags = profile?.redFlags?.filter(
-                        (f) => f.jobTitle === selectedHistoryJob.title
-                      ) || [];
-
-                      return (
-                        <div
-                          key={index}
-                          onClick={() => openCandidateModal(candidate)}
-                          className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-lg p-4 border-2 border-green-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer"
-                        >
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                              {getInitials(candidate.name)}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-bold text-gray-800">{candidate.name}</h3>
-                              <p className="text-sm text-gray-600">{candidate.city}</p>
-                            </div>
+                    .filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted")
+                    .map((candidate) => (
+                      <div
+                        key={candidate.id}
+                        onClick={() => openCandidateModal(candidate)}
+                        className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-lg p-4 border-2 border-green-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                            {getInitials(candidate.name)}
                           </div>
-                          
-                          <div className="space-y-1 text-sm text-gray-600 mb-3">
-                            <p>📱 {candidate.phone}</p>
-                            <p>🎂 {candidate.age} years</p>
-                            <p>⏰ {candidate.availability}</p>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-800">{candidate.name}</h3>
+                            <p className="text-sm text-gray-600">{candidate.city}</p>
                           </div>
-
-                          {/* Rating for this event */}
-                          {jobRating !== null && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-2">
-                              <p className="text-xs text-yellow-700 font-semibold">Your Rating:</p>
-                              <p className="text-sm text-yellow-600">{"⭐".repeat(jobRating)} ({jobRating}/5)</p>
-                            </div>
-                          )}
-
-                          {/* Red flags for this event */}
-                          {jobFlags.length > 0 && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-2 mb-2">
-                              <p className="text-xs text-red-700 font-semibold">🚩 Red Flag:</p>
-                              <p className="text-xs text-red-600">{jobFlags[0].reason}</p>
-                            </div>
-                          )}
-
-                          <p className="text-xs text-green-600 mt-2 font-semibold">
-                            Click for full details →
-                          </p>
                         </div>
-                      );
-                    })}
+                        
+                        <div className="space-y-1 text-sm text-gray-600 mb-3">
+                          <p>📱 {candidate.phone}</p>
+                          <p>🎂 {candidate.age} years</p>
+                          <p>⏰ {candidate.availability}</p>
+                        </div>
+
+                        <p className="text-xs text-green-600 mt-2 font-semibold">
+                          Click for full details →
+                        </p>
+                      </div>
+                    ))}
                 </div>
               )}
             </div>
