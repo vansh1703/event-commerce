@@ -2,73 +2,44 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD } from "@/lib/auth";
+import { apiCall } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    // Check if SuperAdmin
-    if (email === SUPERADMIN_EMAIL && password === SUPERADMIN_PASSWORD) {
-      localStorage.setItem(
-        "posterUser",
-        JSON.stringify({ 
-          email: SUPERADMIN_EMAIL, 
-          companyName: "SuperAdmin",
-          role: "superadmin" 
-        })
-      );
-      alert("Welcome SuperAdmin! 👑");
-      router.push("/superadmin/dashboard");
-      return;
-    }
-
-    // Check regular poster accounts
-    const storedAccounts = localStorage.getItem("posterAccount");
-
-    if (!storedAccounts) {
-      alert("No account found. Please signup first.");
-      router.push("/auth/signup");
-      return;
-    }
-
-    let accounts;
     try {
-      accounts = JSON.parse(storedAccounts);
-    } catch (e) {
-      alert("Account data corrupted. Please signup again.");
-      localStorage.removeItem("posterAccount");
-      router.push("/auth/signup");
-      return;
-    }
+      const data = await apiCall("/auth/company/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
 
-    // Handle both array and single object formats
-    const accountsArray = Array.isArray(accounts) ? accounts : [accounts];
-    
-    const account = accountsArray.find(
-      (acc: any) => acc.email === email && acc.password === password
-    );
+      if (data.success) {
+        // Store user in localStorage for session
+        localStorage.setItem("currentUser", JSON.stringify(data.user));
 
-    if (account) {
-      // Save session with role
-      localStorage.setItem(
-        "posterUser",
-        JSON.stringify({ 
-          email: account.email, 
-          companyName: account.companyName || "Company",
-          role: "company" 
-        })
-      );
+        alert(
+          data.user.user_type === "superadmin"
+            ? "Welcome SuperAdmin! 👑"
+            : "Login Successful!"
+        );
 
-      alert("Login Successful!");
-      router.push("/company/dashboard");
-    } else {
-      alert("Invalid email or password!");
+        if (data.user.user_type === "superadmin") {
+          router.push("/superadmin/dashboard");
+        } else {
+          router.push("/company/dashboard");
+        }
+      }
+    } catch (error: any) {
+      alert(error.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,6 +59,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -99,11 +71,15 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
-          <button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
-            Sign In
+          <button
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+          >
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
@@ -117,13 +93,15 @@ export default function LoginPage() {
           </span>
         </p>
 
-        {/* <div className="mt-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
+        <div className="mt-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
           <p className="text-xs text-indigo-700 text-center">
-            💡 <strong>SuperAdmin Login:</strong><br/>
-            Email: admin@eventhire.com<br/>
+            💡 <strong>SuperAdmin Login:</strong>
+            <br />
+            Email: admin@eventhire.com
+            <br />
             Password: SuperAdmin@2026
           </p>
-        </div> */}
+        </div>
       </div>
     </main>
   );

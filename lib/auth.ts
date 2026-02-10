@@ -1,3 +1,5 @@
+// lib/auth.ts
+
 export const SUPERADMIN_EMAIL = "admin@eventhire.com";
 export const SUPERADMIN_PASSWORD = "SuperAdmin@2026";
 
@@ -10,5 +12,5 @@ export const checkSuperAdminAuth = (): boolean => {
   if (!user) return false;
   
   const parsedUser = JSON.parse(user);
-  return parsedUser.email === SUPERADMIN_EMAIL || parsedUser.role === "superadmin";
+  return parsedUser.email === SUPERADMIN_EMAIL || parsedUser.user_type === "superadmin";
 };

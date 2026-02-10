@@ -2,49 +2,74 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiCall } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
-
   const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = (e: React.FormEvent) => {
+  // const handleSignup = async (e: React.FormEvent) => {
+
+  //   e.preventDefault();
+  //   setLoading(true);
+
+  //   try {
+  //     // const data = await apiCall('/auth/company/signup', {
+  //     //   method: 'POST',
+  //     //   body: JSON.stringify({ companyName, email, password }),
+  //     // });
+  //     const data = await fetch("api/auth/company/signup", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ companyName, email, password }),
+  //     })
+  //     console.log(data);
+      
+  //     if (data.success) {
+  //       alert("Signup Successful! Please login.");
+  //       router.push("/auth/login");
+  //     }
+  //   } catch (error: any) {
+  //     alert(error.message || 'Signup failed');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    // Load existing accounts
-    const storedAccounts = localStorage.getItem("posterAccount");
-    let accountsArray = [];
+    try {
+      const res = await fetch("/api/auth/company/signup", {  // <-- FIXED: Added /api
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ companyName, email, password }),
+      });
 
-    if (storedAccounts) {
-      try {
-        const parsed = JSON.parse(storedAccounts);
-        accountsArray = Array.isArray(parsed) ? parsed : [parsed];
-      } catch (e) {
-        console.error("Error parsing accounts:", e);
-        accountsArray = [];
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Signup failed");
       }
+
+      if (data.success) {
+        alert("✅ Signup Successful! Please login.");
+        router.push("/auth/login");
+      }
+    } catch (error: any) {
+      alert(error.message || "Signup failed");
+      console.error("Signup error:", error);
+    } finally {
+      setLoading(false);
     }
-
-    // Check if email already exists
-    const accountExists = accountsArray.find((acc: any) => acc.email === email);
-
-    if (accountExists) {
-      alert("Account already exists! Please login.");
-      router.push("/auth/login");
-      return;
-    }
-
-    // Add new account
-    const newAccount = { companyName, email, password };
-    accountsArray.push(newAccount);
-
-    // Save back to localStorage
-    localStorage.setItem("posterAccount", JSON.stringify(accountsArray));
-
-    alert("Signup Successful! Please login.");
-    router.push("/auth/login");
   };
 
   return (
@@ -63,6 +88,7 @@ export default function SignupPage() {
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -74,6 +100,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -86,11 +113,15 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
+              disabled={loading}
             />
           </div>
 
-          <button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
-            Sign Up
+          <button 
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+          >
+            {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
 
