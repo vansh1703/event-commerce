@@ -116,7 +116,7 @@ export default function LoginPage() {
           </span>
         </p>
 
-        <div className="mt-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
+        {/* <div className="mt-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
           <p className="text-xs text-indigo-700 text-center">
             💡 <strong>SuperAdmin Login:</strong>
             <br />
@@ -124,7 +124,7 @@ export default function LoginPage() {
             <br />
             Password: SuperAdmin@2026
           </p>
-        </div>
+        </div> */}
       </div>
     </main>
   );
