@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 
 export default function SubmitRequestPage() {
   const router = useRouter();
-  const [companyEmail, setCompanyEmail] = useState("");
-  const [companyName, setCompanyName] = useState("");
+  const [companyUser, setCompanyUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState("");
@@ -19,7 +19,7 @@ export default function SubmitRequestPage() {
   const [contactPhone, setContactPhone] = useState("");
 
   useEffect(() => {
-    const user = localStorage.getItem("posterUser");
+    const user = localStorage.getItem("currentUser");
 
     if (!user) {
       router.push("/auth/login");
@@ -27,41 +27,54 @@ export default function SubmitRequestPage() {
     }
 
     const parsedUser = JSON.parse(user);
-    
-    if (parsedUser.role === "superadmin") {
+
+    if (parsedUser.user_type === "superadmin") {
       router.push("/superadmin/dashboard");
       return;
     }
 
-    setCompanyEmail(parsedUser.email);
-    setCompanyName(parsedUser.companyName);
+    setCompanyUser(parsedUser);
   }, [router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    const newRequest = {
-      id: Date.now().toString(),
-      companyEmail,
-      companyName,
-      title,
-      eventType,
-      helpersNeeded,
-      date,
-      time,
-      location,
-      paymentOffered,
-      description,
-      contactPhone,
-      status: "pending" as const,
-      submittedAt: new Date().toLocaleDateString(),
-    };
+    try {
+      const res = await fetch('/api/job-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyUser.id,
+          companyName: companyUser.company_name,
+          title,
+          eventType,
+          location,
+          helpersNeeded,
+          date,
+          time,
+          paymentOffered,
+          description,
+          contactPhone,
+        }),
+      });
 
-    const oldRequests = JSON.parse(localStorage.getItem("jobRequests") || "[]");
-    localStorage.setItem("jobRequests", JSON.stringify([...oldRequests, newRequest]));
+      const data = await res.json();
 
-    alert("✅ Job request submitted successfully! Waiting for admin approval.");
-    router.push("/company/dashboard");
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit request');
+      }
+
+      if (data.success) {
+        alert("✅ Job request submitted successfully! Waiting for admin approval.");
+        router.push("/company/dashboard");
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to submit request');
+      console.error('Submit error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -90,6 +103,7 @@ export default function SubmitRequestPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
+              disabled={loading}
             />
 
             <select
@@ -97,6 +111,7 @@ export default function SubmitRequestPage() {
               value={eventType}
               onChange={(e) => setEventType(e.target.value)}
               required
+              disabled={loading}
             >
               <option value="">Select Event Type</option>
               <option value="Wedding">Wedding</option>
@@ -115,6 +130,7 @@ export default function SubmitRequestPage() {
               value={helpersNeeded}
               onChange={(e) => setHelpersNeeded(Number(e.target.value))}
               required
+              disabled={loading}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -124,6 +140,7 @@ export default function SubmitRequestPage() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
+                disabled={loading}
               />
 
               <input
@@ -132,6 +149,7 @@ export default function SubmitRequestPage() {
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -142,6 +160,7 @@ export default function SubmitRequestPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               required
+              disabled={loading}
             />
 
             <input
@@ -151,6 +170,7 @@ export default function SubmitRequestPage() {
               value={paymentOffered}
               onChange={(e) => setPaymentOffered(e.target.value)}
               required
+              disabled={loading}
             />
 
             <textarea
@@ -159,6 +179,7 @@ export default function SubmitRequestPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
+              disabled={loading}
             />
 
             <input
@@ -168,10 +189,14 @@ export default function SubmitRequestPage() {
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
               required
+              disabled={loading}
             />
 
-            <button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
-              Submit Request for Approval
+            <button
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+            >
+              {loading ? 'Submitting...' : 'Submit Request for Approval'}
             </button>
           </form>
         </div>

@@ -8,55 +8,76 @@ import SeekerNavbar from "@/components/navbar/SeekerNavbar";
 type Job = {
   id: string;
   title: string;
-  eventType: string;
+  event_type: string;
   location: string;
-  helpersNeeded: number;
+  helpers_needed: number;
   payment: string;
   date: string;
-  completed?: boolean;
+  completed: boolean;
 };
 
 export default function EventsPage() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [seekerUser, setSeekerUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedJobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    
-    // Filter out completed events
-    const activeJobs = storedJobs.filter((job: Job) => {
-      // Check if manually marked complete
-      if (job.completed) return false;
-      
-      // Check if date has passed
-      const eventDate = new Date(job.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      return eventDate >= today;
-    });
-    
-    setJobs(activeJobs);
+    loadJobs();
+    checkUser();
+  }, []);
 
-    // Check if seeker is logged in
+  const checkUser = () => {
     const user = localStorage.getItem("seekerUser");
     if (user) {
       setSeekerUser(JSON.parse(user));
     }
-  }, []);
+  };
+
+  const loadJobs = async () => {
+    try {
+      const res = await fetch('/api/jobs', { method: 'GET' });
+      const data = await res.json();
+      
+      if (data.success) {
+        const activeJobs = data.jobs.filter((job: Job) => {
+          if (job.completed) return false;
+          const eventDate = new Date(job.date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return eventDate >= today;
+        });
+        
+        setJobs(activeJobs);
+      }
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading jobs...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
       <div className="max-w-5xl mx-auto">
-        {/* Show navbar if logged in, otherwise show login/signup buttons */}
         {seekerUser ? (
           <SeekerNavbar />
         ) : (
           <div className="flex justify-between items-center mb-10">
-            {/* <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Available Event Jobs
-            </h1> */}
+            </h1>
             <div className="flex gap-2 md:gap-3">
               <button
                 onClick={() => router.push("/seeker/login")}
@@ -99,7 +120,7 @@ export default function EventsPage() {
                 <div className="space-y-2 text-sm md:text-base">
                   <p className="text-gray-600 flex items-center gap-2">
                     <span className="text-indigo-600">🎭</span>
-                    <span className="font-medium">Type:</span> {job.eventType}
+                    <span className="font-medium">Type:</span> {job.event_type}
                   </p>
 
                   <p className="text-gray-600 flex items-center gap-2">
@@ -114,7 +135,7 @@ export default function EventsPage() {
 
                   <p className="text-gray-600 flex items-center gap-2">
                     <span className="text-indigo-600">👥</span>
-                    <span className="font-medium">Helpers:</span> {job.helpersNeeded}
+                    <span className="font-medium">Helpers:</span> {job.helpers_needed}
                   </p>
 
                   <p className="text-gray-800 font-bold text-base md:text-lg mt-4 flex items-center gap-2">

@@ -6,9 +6,9 @@ export const isSuperAdmin = (email: string): boolean => {
 };
 
 export const checkSuperAdminAuth = (): boolean => {
-  const user = localStorage.getItem("posterUser");
+  const user = localStorage.getItem("currentUser");
   if (!user) return false;
   
   const parsedUser = JSON.parse(user);
-  return parsedUser.email === SUPERADMIN_EMAIL || parsedUser.role === "superadmin";
+  return parsedUser.email === SUPERADMIN_EMAIL || parsedUser.user_type === "superadmin";
 };

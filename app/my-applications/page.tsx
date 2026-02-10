@@ -4,136 +4,105 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SeekerNavbar from "@/components/navbar/SeekerNavbar";
 
-/* =======================
-   TYPES
-======================= */
-
 type Application = {
-  jobId: string;
+  id: string;
+  job_id: string;
   name: string;
   phone: string;
   age: number;
   city: string;
   experience: string;
   availability: string;
-  appliedAt: string;
+  applied_at: string;
   status: "pending" | "accepted" | "rejected";
 };
 
 type Job = {
   id: string;
   title: string;
-  eventType: string;
+  event_type: string;
   location: string;
-  payment: string;
   date: string;
   time: string;
-  completed?: boolean;
+  payment: string;
+  completed: boolean;
 };
-
-type ApplicationWithJob = Application & {
-  job: Job;
-};
-
-type SeekerUser = {
-  name: string;
-  email?: string;
-};
-
-/* =======================
-   COMPONENT
-======================= */
 
 export default function MyApplicationsPage() {
   const router = useRouter();
-
-  const [myApplications, setMyApplications] = useState<ApplicationWithJob[]>([]);
-  const [seekerUser, setSeekerUser] = useState<SeekerUser | null>(null);
+  const [seekerUser, setSeekerUser] = useState<any>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadApplications();
-  }, [router]);
+    checkAuth();
+  }, []);
 
-  const loadApplications = () => {
-    const storedUser = localStorage.getItem("seekerUser");
+  const checkAuth = async () => {
+    const user = localStorage.getItem("seekerUser");
 
-    if (!storedUser) {
+    if (!user) {
       router.push("/seeker/login");
       return;
     }
 
-    const parsedUser: SeekerUser = JSON.parse(storedUser);
+    const parsedUser = JSON.parse(user);
     setSeekerUser(parsedUser);
-
-    const allApplications = JSON.parse(
-      localStorage.getItem("applications") || "[]"
-    ) as (Application & { status?: "pending" | "accepted" | "rejected" })[];
-
-    const jobs = JSON.parse(
-      localStorage.getItem("jobs") || "[]"
-    ) as Job[];
-
-    // Filter only active (not completed) jobs
-    const userApplications: ApplicationWithJob[] = allApplications
-      .filter(app => app.name === parsedUser.name)
-      .map(app => {
-        const job = jobs.find(j => j.id === app.jobId);
-        if (!job) return null;
-        
-        // Check if event is completed
-        const isCompleted = job.completed || new Date(job.date) < new Date();
-        if (isCompleted) return null; // Hide completed events
-        
-        const typedApp: Application = {
-          jobId: app.jobId,
-          name: app.name,
-          phone: app.phone,
-          age: app.age,
-          city: app.city,
-          experience: app.experience,
-          availability: app.availability,
-          appliedAt: app.appliedAt,
-          status: app.status || "pending"
-        };
-        
-        return { ...typedApp, job };
-      })
-      .filter((app): app is ApplicationWithJob => app !== null);
-
-    setMyApplications(userApplications);
+    await loadApplications(parsedUser.id);
   };
 
-  /* =======================
-     WITHDRAW APPLICATION
-  ======================= */
+  const loadApplications = async (seekerId: string) => {
+    try {
+      // Load applications
+      const appsRes = await fetch(`/api/applications?seekerId=${seekerId}`, {
+        method: 'GET',
+      });
+      const appsData = await appsRes.json();
 
-  const handleWithdraw = (jobId: string) => {
-    const confirm = window.confirm(
+      // Load all jobs
+      const jobsRes = await fetch('/api/jobs', { method: 'GET' });
+      const jobsData = await jobsRes.json();
+
+      if (appsData.success && jobsData.success) {
+        setApplications(appsData.applications);
+        setJobs(jobsData.jobs);
+      }
+    } catch (error) {
+      console.error('Error loading applications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdraw = async (applicationId: string) => {
+    const confirmed = window.confirm(
       "Are you sure you want to withdraw this application?"
     );
 
-    if (!confirm) return;
+    if (!confirmed) return;
 
-    const allApplications = JSON.parse(
-      localStorage.getItem("applications") || "[]"
-    );
+    try {
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: 'DELETE',
+      });
 
-    const updatedApplications = allApplications.filter(
-      (app: Application) =>
-        !(app.jobId === jobId && app.name === seekerUser?.name)
-    );
+      const data = await res.json();
 
-    localStorage.setItem("applications", JSON.stringify(updatedApplications));
-
-    alert("Application withdrawn successfully!");
-    loadApplications();
+      if (data.success) {
+        alert("Application withdrawn successfully!");
+        await loadApplications(seekerUser.id);
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to withdraw application');
+    }
   };
 
-  /* =======================
-     HELPERS
-  ======================= */
+  const getJobDetails = (jobId: string) => {
+    return jobs.find((job) => job.id === jobId);
+  };
 
-  const getStatusBadge = (status: "pending" | "accepted" | "rejected") => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "accepted":
         return "bg-gradient-to-r from-green-500 to-emerald-600 text-white";
@@ -144,142 +113,100 @@ export default function MyApplicationsPage() {
     }
   };
 
-  const getStatusIcon = (status: "pending" | "accepted" | "rejected") => {
-    switch (status) {
-      case "accepted":
-        return "✓";
-      case "rejected":
-        return "✗";
-      default:
-        return "⏳";
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading applications...</p>
+        </div>
+      </div>
+    );
+  }
 
-  /* =======================
-     UI
-  ======================= */
+  const activeApplications = applications.filter((app) => {
+    const job = getJobDetails(app.job_id);
+    if (!job) return false;
+    if (job.completed) return false;
+    const eventDate = new Date(job.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return eventDate >= today;
+  });
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
       <div className="max-w-5xl mx-auto">
         <SeekerNavbar />
 
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            My Applications
-          </h1>
-          
-          <button
-            onClick={() => router.push("/completed-events")}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 md:px-6 py-2 md:py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg text-sm md:text-base"
-          >
-            Completed Events
-          </button>
-        </div>
+        <h1 className="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          My Applications ({activeApplications.length})
+        </h1>
 
-        {myApplications.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-lg p-8 text-center border border-gray-100">
-            <p className="text-gray-500 mb-4">
-              You have no active applications.
-            </p>
+        {activeApplications.length === 0 ? (
+          <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
+            <p className="text-gray-500 mb-4">No active applications yet.</p>
             <button
               onClick={() => router.push("/events")}
               className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
             >
-              Browse Jobs
+              Browse Available Jobs
             </button>
           </div>
         ) : (
-          <div className="space-y-4 md:space-y-6">
-            {myApplications.map((app, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-3xl shadow-xl p-4 md:p-6 border border-gray-100 hover:shadow-2xl transition-all duration-300"
-              >
-                {/* Job Title & Status */}
-                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-3 mb-4">
-                  <div className="flex-1">
-                    <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">
-                      {app.job.title}
-                    </h2>
-                    <div className="space-y-1 text-sm md:text-base">
-                      <p className="text-gray-600">
-                        <span className="font-medium">Type:</span>{" "}
-                        {app.job.eventType}
-                      </p>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Location:</span>{" "}
-                        {app.job.location}
-                      </p>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Date:</span>{" "}
-                        {app.job.date} at {app.job.time}
-                      </p>
-                      <p className="text-gray-800 font-bold">
-                        <span className="font-medium">Payment:</span>{" "}
-                        {app.job.payment}
-                      </p>
-                    </div>
-                  </div>
+          <div className="grid gap-6">
+            {activeApplications.map((app) => {
+              const job = getJobDetails(app.job_id);
+              if (!job) return null;
 
-                  {/* Status Badge */}
-                  <div className="flex-shrink-0">
+              return (
+                <div
+                  key={app.id}
+                  className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100"
+                >
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                    <div className="flex-1">
+                      <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                        {job.title}
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        {job.event_type} • {job.location}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        📅 {job.date} at {job.time}
+                      </p>
+                      <p className="text-sm text-gray-600">💰 {job.payment}</p>
+                    </div>
+
                     <span
                       className={`${getStatusBadge(
                         app.status
-                      )} px-4 md:px-6 py-2 md:py-3 rounded-full font-semibold text-sm md:text-base shadow-lg inline-flex items-center gap-2`}
+                      )} px-4 py-2 rounded-full font-semibold text-sm shadow-lg`}
                     >
-                      <span className="text-lg md:text-xl">
-                        {getStatusIcon(app.status)}
-                      </span>
-                      {app.status.charAt(0).toUpperCase() +
-                        app.status.slice(1)}
+                      {app.status === "pending" && "⏳ Pending Review"}
+                      {app.status === "accepted" && "✓ Accepted"}
+                      {app.status === "rejected" && "✗ Rejected"}
                     </span>
                   </div>
-                </div>
 
-                {/* Application Details */}
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="text-xs md:text-sm text-gray-500 mb-3">
-                    Applied on: {app.appliedAt}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 text-sm md:text-base">
-                    <p className="text-gray-600">
-                      <span className="font-medium">Age:</span> {app.age}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">City:</span> {app.city}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Availability:</span>{" "}
-                      {app.availability}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Phone:</span> {app.phone}
+                  <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                    <p className="text-sm text-gray-600">
+                      <span className="font-semibold">Applied on:</span>{" "}
+                      {new Date(app.applied_at).toLocaleDateString()}
                     </p>
                   </div>
 
-                  {app.experience && (
-                    <p className="text-gray-600 mt-3 text-sm md:text-base">
-                      <span className="font-medium">Experience:</span>{" "}
-                      {app.experience}
-                    </p>
-                  )}
-
-                  {/* Withdraw Button - Only for Pending */}
                   {app.status === "pending" && (
-                    <div className="mt-4">
-                      <button
-                        onClick={() => handleWithdraw(app.jobId)}
-                        className="w-full bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all duration-300 font-semibold shadow-lg text-sm md:text-base"
-                      >
-                        Withdraw Application
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleWithdraw(app.id)}
+                      className="w-full bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all duration-300 font-semibold shadow-lg"
+                    >
+                      Withdraw Application
+                    </button>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

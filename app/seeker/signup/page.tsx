@@ -5,47 +5,38 @@ import { useRouter } from "next/navigation";
 
 export default function SeekerSignupPage() {
   const router = useRouter();
-
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    // Check if account already exists
-    const existingAccounts = JSON.parse(
-      localStorage.getItem("seekerAccounts") || "[]"
-    );
+    try {
+      const res = await fetch('/api/auth/seeker/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, phone }),
+      });
 
-    const accountExists = existingAccounts.find(
-      (acc: any) => acc.email === email
-    );
+      const data = await res.json();
 
-    if (accountExists) {
-      alert("Account already exists! Please login.");
-      router.push("/seeker/login");
-      return;
+      if (!res.ok) {
+        throw new Error(data.error || 'Signup failed');
+      }
+
+      if (data.success) {
+        alert("Signup Successful! Please login.");
+        router.push("/seeker/login");
+      }
+    } catch (error: any) {
+      alert(error.message || 'Signup failed');
+    } finally {
+      setLoading(false);
     }
-
-    // Save new seeker account with profile stats
-    const newAccount = {
-      name,
-      email,
-      password,
-      phone,
-      redFlags: [],
-      ratings: [],
-      bannedUntil: null,
-    };
-    localStorage.setItem(
-      "seekerAccounts",
-      JSON.stringify([...existingAccounts, newAccount])
-    );
-
-    alert("Signup Successful! Please login.");
-    router.push("/seeker/login");
   };
 
   return (
@@ -64,6 +55,7 @@ export default function SeekerSignupPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -75,6 +67,7 @@ export default function SeekerSignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -86,6 +79,7 @@ export default function SeekerSignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -97,11 +91,15 @@ export default function SeekerSignupPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
-          <button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
-            Sign Up
+          <button
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+          >
+            {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
 

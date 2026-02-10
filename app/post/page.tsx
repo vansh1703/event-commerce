@@ -7,7 +7,7 @@ export default function PostRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    const user = localStorage.getItem("posterUser");
+    const user = localStorage.getItem("currentUser");
 
     if (!user) {
       router.push("/auth/login");
@@ -16,11 +16,9 @@ export default function PostRedirect() {
 
     const parsedUser = JSON.parse(user);
 
-    if (parsedUser.role === "superadmin") {
-      // SuperAdmin posts from approval modal
+    if (parsedUser.user_type === "superadmin") {
       router.push("/superadmin/dashboard");
     } else {
-      // Companies submit requests
       router.push("/company/submit-request");
     }
   }, [router]);

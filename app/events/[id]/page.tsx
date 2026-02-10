@@ -2,266 +2,292 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import SeekerNavbar from "@/components/navbar/SeekerNavbar";
+
+type Job = {
+  id: string;
+  title: string;
+  event_type: string;
+  location: string;
+  helpers_needed: number;
+  date: string;
+  time: string;
+  payment: string;
+  description: string;
+  contact_phone: string;
+};
 
 export default function JobDetailsPage() {
+  
   const params = useParams();
   const router = useRouter();
-  const jobId = params.id;
+  const jobId = params.id as string;
 
-  const [job, setJob] = useState<any>(null);
+  const [job, setJob] = useState<Job | null>(null);
   const [seekerUser, setSeekerUser] = useState<any>(null);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(false);
 
-  // Applicant Fields
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [age, setAge] = useState<number>(18);
+  const [age, setAge] = useState("");
   const [city, setCity] = useState("");
   const [experience, setExperience] = useState("");
   const [availability, setAvailability] = useState("");
 
-  // Load Job Data
   useEffect(() => {
-    const storedJobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const foundJob = storedJobs.find((j: any) => j.id === jobId);
+    loadJob();
+    checkUser();
+  }, [jobId]);
 
-    if (!foundJob) {
-      alert("Job not found!");
-      router.push("/events");
-      return;
-    }
-
-    setJob(foundJob);
-
-    // Check if seeker is logged in
+  const checkUser = async () => {
     const user = localStorage.getItem("seekerUser");
     if (user) {
       const parsedUser = JSON.parse(user);
       setSeekerUser(parsedUser);
-      setName(parsedUser.name);
-      setPhone(parsedUser.phone);
-
-      // Check if already applied
-      const applications = JSON.parse(
-        localStorage.getItem("applications") || "[]",
-      );
-      const hasApplied = applications.some(
-        (app: any) => app.jobId === jobId && app.name === parsedUser.name,
-      );
-      setAlreadyApplied(hasApplied);
+      setName(parsedUser.full_name || "");
+      setPhone(parsedUser.phone || "");
+      
+      await checkIfApplied(parsedUser.id);
     }
-  }, [jobId, router]);
-
-  // Apply Submit
- const handleApply = (e: React.FormEvent) => {
-  e.preventDefault();
-
-  if (!seekerUser) {
-    const confirmLogin = window.confirm(
-      "Please login to apply for this job. Click OK to go to login page."
-    );
-    if (confirmLogin) {
-      router.push("/seeker/login");
-    }
-    return;
-  }
-
-  // 🔒 Ban check
-  const seekerAccounts = JSON.parse(
-    localStorage.getItem("seekerAccounts") || "[]"
-  );
-  const profile = seekerAccounts.find(
-    (acc: any) => acc.name === seekerUser.name
-  );
-
-  if (profile?.bannedUntil) {
-    const banDate = new Date(profile.bannedUntil);
-    if (banDate > new Date()) {
-      alert(
-        `You are banned from applying until ${banDate.toLocaleDateString()}`
-      );
-      return;
-    }
-  }
-
-  if (alreadyApplied) {
-    alert("You have already applied for this job!");
-    return;
-  }
-
-  // ✅ CREATE APPLICATION
-  const newApplication = {
-    jobId: job.id,
-    name,
-    phone,
-    age,
-    city,
-    experience,
-    availability,
-    appliedAt: new Date().toISOString(),
-    status: "pending", // important
   };
 
-  // ✅ SAVE TO LOCALSTORAGE
-  const applications = JSON.parse(
-    localStorage.getItem("applications") || "[]"
-  );
+  const loadJob = async () => {
+    try {
+      const res = await fetch('/api/jobs', { method: 'GET' });
+      const data = await res.json();
+      
+      if (data.success) {
+        const foundJob = data.jobs.find((j: Job) => j.id === jobId);
+        if (foundJob) {
+          setJob(foundJob);
+        } else {
+          alert("Job not found!");
+          router.push("/events");
+        }
+      }
+    } catch (error) {
+      console.error('Error loading job:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  applications.push(newApplication);
-  localStorage.setItem("applications", JSON.stringify(applications));
+  const checkIfApplied = async (seekerId: string) => {
+    try {
+      const res = await fetch(`/api/applications?jobId=${jobId}&seekerId=${seekerId}`, {
+        method: 'GET',
+      });
+      const data = await res.json();
 
-  // ✅ UPDATE UI
-  setAlreadyApplied(true);
+      if (data.success && data.applications.length > 0) {
+        setAlreadyApplied(true);
+      }
+    } catch (error) {
+      console.error('Error checking application:', error);
+    }
+  };
 
-  alert("Application submitted successfully 🎉");
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // optional redirect
-  router.push("/my-applications");
-};
+    if (!seekerUser) {
+      const confirmLogin = window.confirm(
+        "Please login to apply for this job. Click OK to go to login page."
+      );
+      if (confirmLogin) {
+        router.push("/seeker/login");
+      }
+      return;
+    }
 
+    if (alreadyApplied) {
+      alert("You have already applied for this job!");
+      return;
+    }
+
+    setApplying(true);
+
+    try {
+      const res = await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: jobId,
+          seekerId: seekerUser.id,
+          name,
+          phone,
+          age: parseInt(age),
+          city,
+          experience,
+          availability,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit application');
+      }
+
+      if (data.success) {
+        alert("Application submitted successfully!");
+        router.push("/my-applications");
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to submit application');
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading job details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!job) return null;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
       <div className="max-w-3xl mx-auto">
-        {seekerUser && <SeekerNavbar />}
+        <button
+          onClick={() => router.push("/events")}
+          className="text-indigo-600 hover:text-purple-600 font-semibold mb-4 flex items-center gap-2"
+        >
+          ← Back to Jobs
+        </button>
 
-        <div className="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border border-gray-100">
-          {/* Job Info */}
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+        <div className="bg-white shadow-2xl rounded-3xl p-8 border border-gray-100">
+          <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
             {job.title}
           </h1>
 
-          <div className="space-y-2 mb-8 text-sm md:text-base">
-            <p className="text-gray-600 flex items-center gap-2">
-              <span className="text-indigo-600">📍</span>
-              <span className="font-medium">Location:</span> {job.location}
-            </p>
-
-            <p className="text-gray-600 flex items-center gap-2">
-              <span className="text-indigo-600">👥</span>
-              <span className="font-medium">Helpers Needed:</span>{" "}
-              {job.helpersNeeded}
-            </p>
-
-            <p className="text-gray-800 flex items-center gap-2 font-bold text-base md:text-lg">
-              <span className="text-indigo-600">💰</span>
-              Payment: {job.payment}
-            </p>
-          </div>
-
-          {/* Already Applied Message */}
-          {alreadyApplied && (
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-4 md:p-6 mb-6">
-              <p className="text-green-700 text-center font-semibold flex items-center justify-center gap-2 text-sm md:text-base">
-                <span className="text-xl md:text-2xl">✓</span>
-                You have already applied for this job!
-              </p>
-              <button
-                onClick={() => router.push("/my-applications")}
-                className="w-full mt-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-semibold text-sm md:text-base"
-              >
-                View My Applications
-              </button>
-            </div>
-          )}
-
-          {/* Login Prompt for Guest Users */}
-          {!seekerUser && (
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-4 md:p-6 mb-6">
-              <p className="text-gray-700 text-center font-medium text-sm md:text-base">
-                📝 Please login to apply for this job
-              </p>
-              <div className="flex gap-3 justify-center mt-4">
-                <button
-                  onClick={() => router.push("/seeker/login")}
-                  className="bg-white text-indigo-600 px-4 md:px-6 py-2 rounded-xl border-2 border-indigo-600 hover:bg-indigo-50 transition-all font-semibold text-sm md:text-base"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => router.push("/seeker/signup")}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 md:px-6 py-2 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold text-sm md:text-base"
-                >
-                  Sign Up
-                </button>
+          <div className="space-y-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 mb-1">Event Type</p>
+                <p className="font-semibold text-gray-800">{job.event_type}</p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 mb-1">Location</p>
+                <p className="font-semibold text-gray-800">{job.location}</p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 mb-1">Date & Time</p>
+                <p className="font-semibold text-gray-800">
+                  {job.date} at {job.time}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 mb-1">Helpers Needed</p>
+                <p className="font-semibold text-gray-800">{job.helpers_needed}</p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 mb-1">Payment</p>
+                <p className="font-semibold text-gray-800">{job.payment}</p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 mb-1">Contact</p>
+                <p className="font-semibold text-gray-800">{job.contact_phone}</p>
               </div>
             </div>
-          )}
 
-          {/* Apply Form */}
-          {!alreadyApplied && (
-            <div className="border-t border-indigo-100 pt-6">
-              <h2 className="text-xl md:text-2xl font-semibold mb-6 text-gray-800">
+            <div className="bg-gray-50 rounded-2xl p-4">
+              <p className="text-sm text-gray-500 mb-1">Description</p>
+              <p className="text-gray-800">{job.description}</p>
+            </div>
+          </div>
+
+          {alreadyApplied ? (
+            <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-6 text-center">
+              <p className="text-green-800 font-semibold text-lg mb-2">
+                ✓ Already Applied
+              </p>
+              <p className="text-green-600">
+                You have already applied for this job.
+              </p>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold mb-6 text-gray-800">
                 Apply for this Job
               </h2>
 
-              <form onSubmit={handleApply} className="space-y-4">
+              <form onSubmit={handleApply} className="space-y-5">
                 <input
+                  type="text"
                   placeholder="Full Name"
-                  className="w-full border-2 border-gray-200 p-3 md:p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800 text-sm md:text-base"
+                  className="w-full border-2 border-gray-200 p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  disabled={!!seekerUser}
                   required
+                  disabled={!!seekerUser || applying}
                 />
 
                 <input
+                  type="tel"
                   placeholder="Phone Number"
-                  className="w-full border-2 border-gray-200 p-3 md:p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800 text-sm md:text-base"
+                  className="w-full border-2 border-gray-200 p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  disabled={!!seekerUser}
                   required
+                  disabled={!!seekerUser || applying}
                 />
 
                 <input
                   type="number"
                   placeholder="Age"
-                  className="w-full border-2 border-gray-200 p-3 md:p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800 text-sm md:text-base"
+                  className="w-full border-2 border-gray-200 p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800"
                   value={age}
-                  onChange={(e) => setAge(Number(e.target.value))}
+                  onChange={(e) => setAge(e.target.value)}
                   required
+                  disabled={applying}
                 />
 
                 <input
+                  type="text"
                   placeholder="City"
-                  className="w-full border-2 border-gray-200 p-3 md:p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800 text-sm md:text-base"
+                  className="w-full border-2 border-gray-200 p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   required
+                  disabled={applying}
                 />
 
                 <textarea
-                  placeholder="Experience (if any)"
-                  className="w-full border-2 border-gray-200 p-3 md:p-4 rounded-2xl min-h-[100px] md:min-h-[120px] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 resize-none text-gray-800 text-sm md:text-base"
+                  placeholder="Your Experience (if any)"
+                  className="w-full border-2 border-gray-200 p-4 rounded-2xl min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 resize-none text-gray-800"
                   value={experience}
                   onChange={(e) => setExperience(e.target.value)}
                   required
+                  disabled={applying}
                 />
 
-                <select
-                  className="w-full border-2 border-gray-200 p-3 md:p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all text-gray-800 text-sm md:text-base"
+                <input
+                  type="text"
+                  placeholder="Availability (e.g., Full Day, Morning Only)"
+                  className="w-full border-2 border-gray-200 p-4 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 text-gray-800"
                   value={availability}
                   onChange={(e) => setAvailability(e.target.value)}
                   required
-                >
-                  <option value="">Select Availability</option>
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Only Weekends">Only Weekends</option>
-                </select>
+                  disabled={applying}
+                />
 
                 <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 md:py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl text-sm md:text-base"
+                  disabled={applying}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
                 >
-                  {seekerUser ? "Submit Application" : "Login to Apply"}
+                  {applying ? 'Submitting...' : 'Submit Application'}
                 </button>
               </form>
-            </div>
+            </>
           )}
         </div>
       </div>

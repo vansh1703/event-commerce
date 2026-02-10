@@ -3,54 +3,60 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { checkSuperAdminAuth } from "@/lib/auth";
+import { apiCall } from "@/lib/api";
 import * as XLSX from 'xlsx';
 
 type Job = {
   id: string;
-  requestId: string;
-  companyEmail: string;
-  companyName: string;
+  request_id: string;
+  company_id: string;
+  company_name: string;
+  created_by: string;
   title: string;
-  eventType: string;
+  event_type: string;
   location: string;
-  helpersNeeded: number;
+  helpers_needed: number;
   date: string;
   time: string;
   payment: string;
   description: string;
-  completed?: boolean;
+  contact_phone: string;
+  completed: boolean;
+  created_at: string;
 };
 
 type Application = {
-  jobId: string;
+  id: string;
+  job_id: string;
+  seeker_id: string;
   name: string;
   phone: string;
   age: number;
   city: string;
   experience: string;
   availability: string;
-  appliedAt: string;
+  applied_at: string;
   status: "pending" | "accepted" | "rejected";
 };
 
 type Rating = {
   stars: number;
-  jobTitle: string;
+  job_title: string;
   date: string;
 };
 
 type RedFlag = {
   date: string;
   reason: string;
-  jobTitle: string;
+  job_title: string;
 };
 
-type SeekerProfile = {
-  name: string;
-  email: string;
-  phone: string;
-  redFlags: RedFlag[];
+type SeekerStats = {
+  avgRating: string;
   ratings: Rating[];
+  redFlags: RedFlag[];
+  redFlagCount: number;
+  isBanned: boolean;
   bannedUntil: string | null;
 };
 
@@ -63,13 +69,16 @@ export default function SuperAdminApplicantsPage() {
   const [applicants, setApplicants] = useState<Application[]>([]);
   const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
   const [showDialog, setShowDialog] = useState(false);
-  const [seekerProfile, setSeekerProfile] = useState<SeekerProfile | null>(null);
+  const [seekerStats, setSeekerStats] = useState<SeekerStats | null>(null);
 
   // For flag/rating
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [flagReason, setFlagReason] = useState("");
   const [rating, setRating] = useState(5);
+
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     if (!checkSuperAdminAuth()) {
@@ -79,65 +88,81 @@ export default function SuperAdminApplicantsPage() {
     }
 
     loadData();
-  }, [jobId]);
+  }, [jobId, router]);
 
-  const loadData = () => {
-    const jobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const foundJob = jobs.find((j: Job) => j.id === jobId);
-    
-    if (!foundJob) {
-      alert("Job not found!");
-      router.push("/superadmin/dashboard");
-      return;
+  const loadData = async () => {
+    try {
+      // Load job details
+      const jobsData = await apiCall('/jobs', { method: 'GET' });
+      
+      if (jobsData.success) {
+        const foundJob = jobsData.jobs.find((j: Job) => j.id === jobId);
+        
+        if (!foundJob) {
+          alert("Job not found!");
+          router.push("/superadmin/dashboard");
+          return;
+        }
+
+        setJob(foundJob);
+      }
+
+      // Load applications for this job
+      const appsData = await apiCall(`/applications?jobId=${jobId}`, { method: 'GET' });
+      
+      if (appsData.success) {
+        setApplicants(appsData.applications || []);
+      }
+    } catch (error: any) {
+      console.error('Error loading data:', error);
+      alert('Failed to load job details');
+    } finally {
+      setLoading(false);
     }
-
-    setJob(foundJob);
-
-    const allApplications = JSON.parse(
-      localStorage.getItem("applications") || "[]"
-    );
-    const jobApplicants = allApplications.filter(
-      (app: Application) => app.jobId === jobId
-    );
-    setApplicants(jobApplicants);
   };
 
-  const openApplicantDialog = (applicant: Application) => {
+  const openApplicantDialog = async (applicant: Application) => {
     setSelectedApplicant(applicant);
     
-    const seekerAccounts = JSON.parse(
-      localStorage.getItem("seekerAccounts") || "[]"
-    );
-    const profile = seekerAccounts.find(
-      (acc: SeekerProfile) => acc.name === applicant.name
-    );
-    setSeekerProfile(profile || null);
+    try {
+      // Fetch seeker stats
+      const statsData = await apiCall(`/seekers/${applicant.seeker_id}/stats`, { method: 'GET' });
+      
+      if (statsData.success) {
+        setSeekerStats(statsData.stats);
+      }
+    } catch (error) {
+      console.error('Error loading seeker stats:', error);
+      setSeekerStats(null);
+    }
     
     setShowDialog(true);
   };
 
-  const updateStatus = (newStatus: "accepted" | "rejected") => {
+  const updateStatus = async (newStatus: "accepted" | "rejected") => {
     if (!selectedApplicant) return;
 
-    const allApplications = JSON.parse(
-      localStorage.getItem("applications") || "[]"
-    );
+    setProcessing(true);
 
-    const updatedApplications = allApplications.map((app: Application) => {
-      if (app.jobId === jobId && app.name === selectedApplicant.name) {
-        return { ...app, status: newStatus };
+    try {
+      const data = await apiCall(`/applications/${selectedApplicant.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (data.success) {
+        alert(`Application ${newStatus === "accepted" ? "Accepted" : "Rejected"}!`);
+        setShowDialog(false);
+        await loadData();
       }
-      return app;
-    });
-
-    localStorage.setItem("applications", JSON.stringify(updatedApplications));
-    
-    alert(`Application ${newStatus === "accepted" ? "Accepted" : "Rejected"}!`);
-    setShowDialog(false);
-    loadData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to update application status');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const markEventComplete = () => {
+  const markEventComplete = async () => {
     const confirmed = window.confirm(
       `⚠️ Mark "${job?.title}" as complete?\n\n` +
       `This will:\n` +
@@ -149,17 +174,22 @@ export default function SuperAdminApplicantsPage() {
 
     if (!confirmed) return;
 
-    const allJobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    const updatedJobs = allJobs.map((j: Job) => {
-      if (j.id === jobId) {
-        return { ...j, completed: true };
-      }
-      return j;
-    });
+    setProcessing(true);
 
-    localStorage.setItem("jobs", JSON.stringify(updatedJobs));
-    loadData();
-    alert("✅ Event marked as completed!");
+    try {
+      const data = await apiCall(`/jobs/${jobId}/complete`, {
+        method: 'POST',
+      });
+
+      if (data.success) {
+        alert("✅ Event marked as completed!");
+        await loadData();
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to mark event as complete');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const exportToExcel = () => {
@@ -177,7 +207,7 @@ export default function SuperAdminApplicantsPage() {
       "City": app.city,
       "Availability": app.availability,
       "Experience": app.experience,
-      "Applied On": app.appliedAt,
+      "Applied On": app.applied_at,
       "Status": "Accepted"
     }));
 
@@ -188,112 +218,89 @@ export default function SuperAdminApplicantsPage() {
     XLSX.writeFile(workbook, `${job?.title}_Accepted_Applicants.xlsx`);
   };
 
-  const getSeekerStats = () => {
-    if (!seekerProfile) return { redFlagCount: 0, avgRating: 0, isBanned: false };
+  const getSeekerStatsDisplay = () => {
+    if (!seekerStats) return { redFlagCount: 0, avgRating: 0, isBanned: false };
 
-    const redFlagCount = seekerProfile.redFlags?.length || 0;
-    const ratings = seekerProfile.ratings || [];
-    const avgRating =
-      ratings.length > 0
-        ? ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length
-        : 0;
-
-    const isBanned = seekerProfile.bannedUntil
-      ? new Date(seekerProfile.bannedUntil) > new Date()
-      : false;
-
-    return { redFlagCount, avgRating: avgRating.toFixed(1), isBanned };
+    return {
+      redFlagCount: seekerStats.redFlagCount || 0,
+      avgRating: seekerStats.avgRating || 0,
+      isBanned: seekerStats.isBanned || false
+    };
   };
 
-  const handleAddRedFlag = () => {
+  const handleAddRedFlag = async () => {
     if (!selectedApplicant || !flagReason.trim()) {
       alert("Please provide a reason for the red flag.");
       return;
     }
 
-    const seekerAccounts: SeekerProfile[] = JSON.parse(
-      localStorage.getItem("seekerAccounts") || "[]"
-    );
+    setProcessing(true);
 
-    let alreadyFlagged = false;
+    try {
+      const data = await apiCall('/red-flags', {
+        method: 'POST',
+        body: JSON.stringify({
+          seekerId: selectedApplicant.seeker_id,
+          jobId: job?.id,
+          jobTitle: job?.title || "",
+          reason: flagReason,
+        }),
+      });
 
-    const updatedAccounts = seekerAccounts.map((acc) => {
-      if (acc.name === selectedApplicant.name) {
-        const existingFlags = acc.redFlags || [];
+      if (data.success) {
+        alert("Red flag added successfully!");
+        setShowFlagModal(false);
+        setFlagReason("");
         
-        if (existingFlags.some((flag: RedFlag) => flag.jobTitle === job?.title)) {
-          alreadyFlagged = true;
-          return acc;
+        // Reload seeker stats
+        if (selectedApplicant) {
+          const statsData = await apiCall(`/seekers/${selectedApplicant.seeker_id}/stats`, { method: 'GET' });
+          if (statsData.success) {
+            setSeekerStats(statsData.stats);
+          }
         }
-
-        const newRedFlags = [
-          ...existingFlags,
-          {
-            date: new Date().toLocaleDateString(),
-            reason: flagReason,
-            jobTitle: job?.title || "",
-          },
-        ];
-
-        let bannedUntil = acc.bannedUntil;
-        if (newRedFlags.length >= 3) {
-          const banDate = new Date();
-          banDate.setDate(banDate.getDate() + 30);
-          bannedUntil = banDate.toISOString();
-        }
-
-        return {
-          ...acc,
-          redFlags: newRedFlags,
-          bannedUntil,
-        };
       }
-      return acc;
-    });
-
-    if (alreadyFlagged) {
-      alert("You have already flagged this user for this event!");
-      return;
+    } catch (error: any) {
+      alert(error.message || 'Failed to add red flag');
+    } finally {
+      setProcessing(false);
     }
-
-    localStorage.setItem("seekerAccounts", JSON.stringify(updatedAccounts));
-
-    alert("Red flag added successfully!");
-    setShowFlagModal(false);
-    setFlagReason("");
-    loadData();
   };
 
-  const handleAddRating = () => {
+  const handleAddRating = async () => {
     if (!selectedApplicant) return;
 
-    const seekerAccounts: SeekerProfile[] = JSON.parse(
-      localStorage.getItem("seekerAccounts") || "[]"
-    );
+    setProcessing(true);
 
-    const updatedAccounts = seekerAccounts.map((acc) => {
-      if (acc.name === selectedApplicant.name) {
-        return {
-          ...acc,
-          ratings: [
-            ...(acc.ratings || []),
-            {
-              stars: rating,
-              jobTitle: job?.title || "",
-              date: new Date().toLocaleDateString(),
-            },
-          ],
-        };
+    try {
+      const data = await apiCall('/ratings', {
+        method: 'POST',
+        body: JSON.stringify({
+          seekerId: selectedApplicant.seeker_id,
+          jobId: job?.id,
+          jobTitle: job?.title || "",
+          stars: rating,
+        }),
+      });
+
+      if (data.success) {
+        alert("Rating added successfully!");
+        setShowRatingModal(false);
+        setRating(5);
+        
+        // Reload seeker stats
+        if (selectedApplicant) {
+          const statsData = await apiCall(`/seekers/${selectedApplicant.seeker_id}/stats`, { method: 'GET' });
+          if (statsData.success) {
+            setSeekerStats(statsData.stats);
+          }
+        }
       }
-      return acc;
-    });
-
-    localStorage.setItem("seekerAccounts", JSON.stringify(updatedAccounts));
-
-    alert("Rating added successfully!");
-    setShowRatingModal(false);
-    setRating(5);
-    loadData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to add rating');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -315,6 +322,17 @@ export default function SuperAdminApplicantsPage() {
         return "bg-gradient-to-r from-yellow-500 to-orange-600 text-white";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading applicants...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!job) return null;
 
@@ -338,7 +356,7 @@ export default function SuperAdminApplicantsPage() {
               {job.title}
             </h1>
             <p className="text-gray-600 mt-1">
-              🏢 {job.companyName} • {job.date} • Posted: {job.payment}
+              🏢 {job.company_name} • {job.date} • Posted: {job.payment}
             </p>
           </div>
 
@@ -346,9 +364,10 @@ export default function SuperAdminApplicantsPage() {
             {!job.completed && (
               <button
                 onClick={markEventComplete}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg"
+                disabled={processing}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50"
               >
-                ✓ Mark Complete
+                {processing ? 'Processing...' : '✓ Mark Complete'}
               </button>
             )}
             <button
@@ -404,7 +423,7 @@ export default function SuperAdminApplicantsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">📱 {app.phone}</p>
-                      <p className="text-sm text-gray-600">Applied: {app.appliedAt}</p>
+                      <p className="text-sm text-gray-600">Applied: {new Date(app.applied_at).toLocaleDateString()}</p>
                     </div>
                   ))}
                 </div>
@@ -432,7 +451,7 @@ export default function SuperAdminApplicantsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">📱 {app.phone}</p>
-                      <p className="text-sm text-gray-600">Applied: {app.appliedAt}</p>
+                      <p className="text-sm text-gray-600">Applied: {new Date(app.applied_at).toLocaleDateString()}</p>
                     </div>
                   ))}
                 </div>
@@ -460,7 +479,7 @@ export default function SuperAdminApplicantsPage() {
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">📱 {app.phone}</p>
-                      <p className="text-sm text-gray-600">Applied: {app.appliedAt}</p>
+                      <p className="text-sm text-gray-600">Applied: {new Date(app.applied_at).toLocaleDateString()}</p>
                     </div>
                   ))}
                 </div>
@@ -488,15 +507,15 @@ export default function SuperAdminApplicantsPage() {
                 </span>
 
                 {/* Stats */}
-                {seekerProfile && (
+                {seekerStats && (
                   <div className="flex gap-3 mt-3">
                     <span className="text-sm flex items-center gap-1">
-                      ⭐ <span className="font-semibold">{Number(getSeekerStats().avgRating) > 0 ? getSeekerStats().avgRating : "No ratings"}</span>
+                      ⭐ <span className="font-semibold">{Number(getSeekerStatsDisplay().avgRating) > 0 ? getSeekerStatsDisplay().avgRating : "No ratings"}</span>
                     </span>
-                    <span className={`text-sm flex items-center gap-1 ${getSeekerStats().redFlagCount > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                      🚩 <span>{getSeekerStats().redFlagCount} Red Flags</span>
+                    <span className={`text-sm flex items-center gap-1 ${getSeekerStatsDisplay().redFlagCount > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                      🚩 <span>{getSeekerStatsDisplay().redFlagCount} Red Flags</span>
                     </span>
-                    {getSeekerStats().isBanned && (
+                    {getSeekerStatsDisplay().isBanned && (
                       <span className="text-red-600 font-bold text-sm">
                         🚫 BANNED
                       </span>
@@ -534,7 +553,7 @@ export default function SuperAdminApplicantsPage() {
 
             {/* Applied Date */}
             <p className="text-sm text-gray-500 mb-6">
-              Applied on: {selectedApplicant.appliedAt}
+              Applied on: {new Date(selectedApplicant.applied_at).toLocaleDateString()}
             </p>
 
             {/* Action Buttons */}
@@ -543,15 +562,17 @@ export default function SuperAdminApplicantsPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => updateStatus("accepted")}
-                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg"
+                    disabled={processing}
+                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50"
                   >
-                    ✓ Accept
+                    {processing ? 'Processing...' : '✓ Accept'}
                   </button>
                   <button
                     onClick={() => updateStatus("rejected")}
-                    className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all duration-300 font-semibold shadow-lg"
+                    disabled={processing}
+                    className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50"
                   >
-                    ✗ Reject
+                    {processing ? 'Processing...' : '✗ Reject'}
                   </button>
                 </div>
               )}
@@ -599,6 +620,7 @@ export default function SuperAdminApplicantsPage() {
               className="w-full border-2 border-gray-200 p-4 rounded-2xl min-h-[120px] bg-white focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 transition-all placeholder:text-gray-400 resize-none text-gray-800"
               value={flagReason}
               onChange={(e) => setFlagReason(e.target.value)}
+              disabled={processing}
             />
             <div className="flex gap-3 mt-6">
               <button
@@ -606,15 +628,17 @@ export default function SuperAdminApplicantsPage() {
                   setShowFlagModal(false);
                   setFlagReason("");
                 }}
-                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl hover:bg-gray-300 transition-all font-semibold"
+                disabled={processing}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl hover:bg-gray-300 transition-all font-semibold disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddRedFlag}
-                className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg"
+                disabled={processing}
+                className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg disabled:opacity-50"
               >
-                Add Flag
+                {processing ? 'Adding...' : 'Add Flag'}
               </button>
             </div>
           </div>
@@ -638,11 +662,12 @@ export default function SuperAdminApplicantsPage() {
                 <button
                   key={star}
                   onClick={() => setRating(star)}
+                  disabled={processing}
                   className={`text-5xl transition-all ${
                     star <= rating
                       ? "text-yellow-500 scale-110"
                       : "text-gray-300"
-                  }`}
+                  } ${processing ? 'opacity-50' : ''}`}
                 >
                   ⭐
                 </button>
@@ -659,15 +684,17 @@ export default function SuperAdminApplicantsPage() {
                   setShowRatingModal(false);
                   setRating(5);
                 }}
-                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl hover:bg-gray-300 transition-all font-semibold"
+                disabled={processing}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-2xl hover:bg-gray-300 transition-all font-semibold disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddRating}
-                className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-3 rounded-2xl hover:from-yellow-600 hover:to-orange-700 transition-all font-semibold shadow-lg"
+                disabled={processing}
+                className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-3 rounded-2xl hover:from-yellow-600 hover:to-orange-700 transition-all font-semibold shadow-lg disabled:opacity-50"
               >
-                Submit Rating
+                {processing ? 'Submitting...' : 'Submit Rating'}
               </button>
             </div>
           </div>

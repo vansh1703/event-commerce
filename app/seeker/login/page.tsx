@@ -5,32 +5,36 @@ import { useRouter } from "next/navigation";
 
 export default function SeekerLoginPage() {
   const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    const seekerAccounts = JSON.parse(
-      localStorage.getItem("seekerAccounts") || "[]"
-    );
+    try {
+      const res = await fetch('/api/auth/seeker/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    const account = seekerAccounts.find(
-      (acc: any) => acc.email === email && acc.password === password
-    );
+      const data = await res.json();
 
-    if (account) {
-      // Save logged-in seeker session
-      localStorage.setItem(
-        "seekerUser",
-        JSON.stringify({ name: account.name, email: account.email, phone: account.phone })
-      );
+      if (!res.ok) {
+        throw new Error(data.error || 'Invalid credentials');
+      }
 
-      alert("Login Successful!");
-      router.push("/events");
-    } else {
-      alert("Invalid email or password!");
+      if (data.success) {
+        localStorage.setItem('seekerUser', JSON.stringify(data.user));
+        alert("Login Successful!");
+        router.push("/events");
+      }
+    } catch (error: any) {
+      alert(error.message || 'Invalid credentials');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,6 +54,7 @@ export default function SeekerLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -61,11 +66,15 @@ export default function SeekerLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
-          <button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
-            Sign In
+          <button
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
