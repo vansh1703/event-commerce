@@ -3,9 +3,19 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: Request) {
   try {
-    const { jobId, seekerId, name, phone, age, city, experience, availability } = await request.json();
+    const body = await request.json();
+    const {
+      jobId,
+      seekerId,
+      name,
+      phone,
+      age,
+      city,
+      experience,
+      availability,
+    } = body;
 
-    // Check if seeker is banned
+    // Check if banned
     const { data: ban } = await supabaseAdmin
       .from('seeker_bans')
       .select('*')
@@ -19,23 +29,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if already applied
-    const { data: existing } = await supabaseAdmin
-      .from('applications')
+    // Check if job is archived
+    const { data: job } = await supabaseAdmin
+      .from('jobs')
       .select('*')
-      .eq('job_id', jobId)
-      .eq('seeker_id', seekerId)
-      .maybeSingle();
+      .eq('id', jobId)
+      .single();
 
-    if (existing) {
+    if (job?.archived) {
       return NextResponse.json(
-        { error: 'You have already applied for this job' },
+        { error: 'This job is no longer accepting applications' },
         { status: 400 }
       );
     }
 
-    // Create application
-    const { data: application, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('applications')
       .insert({
         job_id: jobId,
@@ -52,15 +60,43 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: 'You have already applied for this job' },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
 
-    return NextResponse.json({ success: true, application });
+    // ✅ AUTO-ARCHIVE LOGIC
+    if (job) {
+      const { data: allApps } = await supabaseAdmin
+        .from('applications')
+        .select('id')
+        .eq('job_id', jobId);
+
+      const totalApps = allApps?.length || 0;
+      const threshold = job.helpers_needed * 2;
+
+      if (totalApps >= threshold) {
+        await supabaseAdmin
+          .from('jobs')
+          .update({ archived: true })
+          .eq('id', jobId);
+
+        console.log(`✅ Job ${jobId} auto-archived: ${totalApps}/${threshold} applications`);
+      }
+    }
+
+    return NextResponse.json({ success: true, application: data });
   } catch (error: any) {
-    console.error('Application error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
+// GET method stays the same...
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -77,11 +113,11 @@ export async function GET(request: Request) {
       query = query.eq('seeker_id', seekerId);
     }
 
-    const { data: applications, error } = await query.order('applied_at', { ascending: false });
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, applications });
+    return NextResponse.json({ success: true, applications: data || [] });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -14,6 +14,7 @@ type Job = {
   payment: string;
   date: string;
   completed: boolean;
+  archived: boolean;
 };
 
 export default function EventsPage() {
@@ -36,22 +37,28 @@ export default function EventsPage() {
 
   const loadJobs = async () => {
     try {
-      const res = await fetch('/api/jobs', { method: 'GET' });
+      const res = await fetch("/api/jobs", { method: "GET" });
       const data = await res.json();
-      
+
       if (data.success) {
         const activeJobs = data.jobs.filter((job: Job) => {
+          // Filter out completed jobs
           if (job.completed) return false;
+
+          // ✅ Filter out archived jobs
+          if (job.archived) return false;
+
+          // Filter out past events
           const eventDate = new Date(job.date);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           return eventDate >= today;
         });
-        
+
         setJobs(activeJobs);
       }
     } catch (error) {
-      console.error('Error loading jobs:', error);
+      console.error("Error loading jobs:", error);
     } finally {
       setLoading(false);
     }
@@ -125,7 +132,8 @@ export default function EventsPage() {
 
                   <p className="text-gray-600 flex items-center gap-2">
                     <span className="text-indigo-600">📍</span>
-                    <span className="font-medium">Location:</span> {job.location}
+                    <span className="font-medium">Location:</span>{" "}
+                    {job.location}
                   </p>
 
                   <p className="text-gray-600 flex items-center gap-2">
@@ -135,7 +143,8 @@ export default function EventsPage() {
 
                   <p className="text-gray-600 flex items-center gap-2">
                     <span className="text-indigo-600">👥</span>
-                    <span className="font-medium">Helpers:</span> {job.helpers_needed}
+                    <span className="font-medium">Helpers:</span>{" "}
+                    {job.helpers_needed}
                   </p>
 
                   <p className="text-gray-800 font-bold text-base md:text-lg mt-4 flex items-center gap-2">

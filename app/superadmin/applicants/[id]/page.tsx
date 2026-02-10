@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { checkSuperAdminAuth } from "@/lib/auth";
 import { apiCall } from "@/lib/api";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 type Job = {
   id: string;
@@ -23,6 +23,7 @@ type Job = {
   contact_phone: string;
   completed: boolean;
   created_at: string;
+  archived: boolean;
 };
 
 type Application = {
@@ -67,7 +68,8 @@ export default function SuperAdminApplicantsPage() {
 
   const [job, setJob] = useState<Job | null>(null);
   const [applicants, setApplicants] = useState<Application[]>([]);
-  const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
+  const [selectedApplicant, setSelectedApplicant] =
+    useState<Application | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [seekerStats, setSeekerStats] = useState<SeekerStats | null>(null);
 
@@ -90,14 +92,84 @@ export default function SuperAdminApplicantsPage() {
     loadData();
   }, [jobId, router]);
 
+  const toggleArchive = async () => {
+    if (!job) return;
+
+    const acceptedCount = applicants.filter(
+      (app) => app.status === "accepted",
+    ).length;
+    const totalCount = applicants.length;
+    const required = job.helpers_needed;
+
+    // UNARCHIVE LOGIC
+    if (job.archived) {
+      // Check conditions before unarchiving
+      if (acceptedCount === required) {
+        alert(
+          "✅ You have already accepted the required number of candidates!",
+        );
+        return;
+      }
+
+      if (totalCount >= required * 2) {
+        alert(
+          "⚠️ Your application bucket is full! Please accept or reject pending candidates before unarchiving.",
+        );
+        return;
+      }
+
+      if (acceptedCount < required) {
+        const confirm = window.confirm(
+          `Unarchive this job?\n\n` +
+            `This will make it visible to job seekers again.\n` +
+            `Accepted: ${acceptedCount}/${required}\n` +
+            `Total Applications: ${totalCount}/${required * 2}`,
+        );
+
+        if (!confirm) return;
+      }
+    } else {
+      // ARCHIVE LOGIC
+      const confirm = window.confirm(
+        `Archive this job?\n\n` +
+          `This will hide it from job seekers.\n` +
+          `They won't be able to apply anymore.`,
+      );
+
+      if (!confirm) return;
+    }
+
+    setProcessing(true);
+
+    try {
+      const data = await apiCall(`/jobs/${jobId}/archive`, {
+        method: "POST",
+        body: JSON.stringify({ archived: !job.archived }),
+      });
+
+      if (data.success) {
+        alert(
+          job.archived
+            ? "✅ Job unarchived successfully!"
+            : "✅ Job archived successfully!",
+        );
+        await loadData();
+      }
+    } catch (error: any) {
+      alert(error.message || "Failed to archive/unarchive job");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const loadData = async () => {
     try {
       // Load job details
-      const jobsData = await apiCall('/jobs', { method: 'GET' });
-      
+      const jobsData = await apiCall("/jobs", { method: "GET" });
+
       if (jobsData.success) {
         const foundJob = jobsData.jobs.find((j: Job) => j.id === jobId);
-        
+
         if (!foundJob) {
           alert("Job not found!");
           router.push("/superadmin/dashboard");
@@ -108,14 +180,16 @@ export default function SuperAdminApplicantsPage() {
       }
 
       // Load applications for this job
-      const appsData = await apiCall(`/applications?jobId=${jobId}`, { method: 'GET' });
-      
+      const appsData = await apiCall(`/applications?jobId=${jobId}`, {
+        method: "GET",
+      });
+
       if (appsData.success) {
         setApplicants(appsData.applications || []);
       }
     } catch (error: any) {
-      console.error('Error loading data:', error);
-      alert('Failed to load job details');
+      console.error("Error loading data:", error);
+      alert("Failed to load job details");
     } finally {
       setLoading(false);
     }
@@ -123,19 +197,21 @@ export default function SuperAdminApplicantsPage() {
 
   const openApplicantDialog = async (applicant: Application) => {
     setSelectedApplicant(applicant);
-    
+
     try {
       // Fetch seeker stats
-      const statsData = await apiCall(`/seekers/${applicant.seeker_id}/stats`, { method: 'GET' });
-      
+      const statsData = await apiCall(`/seekers/${applicant.seeker_id}/stats`, {
+        method: "GET",
+      });
+
       if (statsData.success) {
         setSeekerStats(statsData.stats);
       }
     } catch (error) {
-      console.error('Error loading seeker stats:', error);
+      console.error("Error loading seeker stats:", error);
       setSeekerStats(null);
     }
-    
+
     setShowDialog(true);
   };
 
@@ -146,17 +222,19 @@ export default function SuperAdminApplicantsPage() {
 
     try {
       const data = await apiCall(`/applications/${selectedApplicant.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (data.success) {
-        alert(`Application ${newStatus === "accepted" ? "Accepted" : "Rejected"}!`);
+        alert(
+          `Application ${newStatus === "accepted" ? "Accepted" : "Rejected"}!`,
+        );
         setShowDialog(false);
         await loadData();
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to update application status');
+      alert(error.message || "Failed to update application status");
     } finally {
       setProcessing(false);
     }
@@ -165,11 +243,11 @@ export default function SuperAdminApplicantsPage() {
   const markEventComplete = async () => {
     const confirmed = window.confirm(
       `⚠️ Mark "${job?.title}" as complete?\n\n` +
-      `This will:\n` +
-      `✓ Remove job from active listings\n` +
-      `✓ Enable rating and flagging\n` +
-      `✓ Move to event history\n\n` +
-      `Continue?`
+        `This will:\n` +
+        `✓ Remove job from active listings\n` +
+        `✓ Enable rating and flagging\n` +
+        `✓ Move to event history\n\n` +
+        `Continue?`,
     );
 
     if (!confirmed) return;
@@ -178,7 +256,7 @@ export default function SuperAdminApplicantsPage() {
 
     try {
       const data = await apiCall(`/jobs/${jobId}/complete`, {
-        method: 'POST',
+        method: "POST",
       });
 
       if (data.success) {
@@ -186,35 +264,37 @@ export default function SuperAdminApplicantsPage() {
         await loadData();
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to mark event as complete');
+      alert(error.message || "Failed to mark event as complete");
     } finally {
       setProcessing(false);
     }
   };
 
   const exportToExcel = () => {
-    const acceptedApplicants = applicants.filter(app => app.status === "accepted");
-    
+    const acceptedApplicants = applicants.filter(
+      (app) => app.status === "accepted",
+    );
+
     if (acceptedApplicants.length === 0) {
       alert("No accepted applicants to export!");
       return;
     }
 
-    const exportData = acceptedApplicants.map(app => ({
-      "Name": app.name,
-      "Phone": app.phone,
-      "Age": app.age,
-      "City": app.city,
-      "Availability": app.availability,
-      "Experience": app.experience,
+    const exportData = acceptedApplicants.map((app) => ({
+      Name: app.name,
+      Phone: app.phone,
+      Age: app.age,
+      City: app.city,
+      Availability: app.availability,
+      Experience: app.experience,
       "Applied On": app.applied_at,
-      "Status": "Accepted"
+      Status: "Accepted",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Accepted Applicants");
-    
+
     XLSX.writeFile(workbook, `${job?.title}_Accepted_Applicants.xlsx`);
   };
 
@@ -224,7 +304,7 @@ export default function SuperAdminApplicantsPage() {
     return {
       redFlagCount: seekerStats.redFlagCount || 0,
       avgRating: seekerStats.avgRating || 0,
-      isBanned: seekerStats.isBanned || false
+      isBanned: seekerStats.isBanned || false,
     };
   };
 
@@ -237,8 +317,8 @@ export default function SuperAdminApplicantsPage() {
     setProcessing(true);
 
     try {
-      const data = await apiCall('/red-flags', {
-        method: 'POST',
+      const data = await apiCall("/red-flags", {
+        method: "POST",
         body: JSON.stringify({
           seekerId: selectedApplicant.seeker_id,
           jobId: job?.id,
@@ -251,17 +331,20 @@ export default function SuperAdminApplicantsPage() {
         alert("Red flag added successfully!");
         setShowFlagModal(false);
         setFlagReason("");
-        
+
         // Reload seeker stats
         if (selectedApplicant) {
-          const statsData = await apiCall(`/seekers/${selectedApplicant.seeker_id}/stats`, { method: 'GET' });
+          const statsData = await apiCall(
+            `/seekers/${selectedApplicant.seeker_id}/stats`,
+            { method: "GET" },
+          );
           if (statsData.success) {
             setSeekerStats(statsData.stats);
           }
         }
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to add red flag');
+      alert(error.message || "Failed to add red flag");
     } finally {
       setProcessing(false);
     }
@@ -273,8 +356,8 @@ export default function SuperAdminApplicantsPage() {
     setProcessing(true);
 
     try {
-      const data = await apiCall('/ratings', {
-        method: 'POST',
+      const data = await apiCall("/ratings", {
+        method: "POST",
         body: JSON.stringify({
           seekerId: selectedApplicant.seeker_id,
           jobId: job?.id,
@@ -287,17 +370,20 @@ export default function SuperAdminApplicantsPage() {
         alert("Rating added successfully!");
         setShowRatingModal(false);
         setRating(5);
-        
+
         // Reload seeker stats
         if (selectedApplicant) {
-          const statsData = await apiCall(`/seekers/${selectedApplicant.seeker_id}/stats`, { method: 'GET' });
+          const statsData = await apiCall(
+            `/seekers/${selectedApplicant.seeker_id}/stats`,
+            { method: "GET" },
+          );
           if (statsData.success) {
             setSeekerStats(statsData.stats);
           }
         }
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to add rating');
+      alert(error.message || "Failed to add rating");
     } finally {
       setProcessing(false);
     }
@@ -336,9 +422,15 @@ export default function SuperAdminApplicantsPage() {
 
   if (!job) return null;
 
-  const pendingApplicants = applicants.filter(app => app.status === "pending");
-  const acceptedApplicants = applicants.filter(app => app.status === "accepted");
-  const rejectedApplicants = applicants.filter(app => app.status === "rejected");
+  const pendingApplicants = applicants.filter(
+    (app) => app.status === "pending",
+  );
+  const acceptedApplicants = applicants.filter(
+    (app) => app.status === "accepted",
+  );
+  const rejectedApplicants = applicants.filter(
+    (app) => app.status === "rejected",
+  );
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
@@ -358,18 +450,42 @@ export default function SuperAdminApplicantsPage() {
             <p className="text-gray-600 mt-1">
               🏢 {job.company_name} • {job.date} • Posted: {job.payment}
             </p>
+            {/* ✅ ADD THIS */}
+            {job.archived && (
+              <span className="inline-block mt-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold">
+                📦 ARCHIVED
+              </span>
+            )}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            {/* ✅ ADD THIS BUTTON */}
+            <button
+              onClick={toggleArchive}
+              disabled={processing}
+              className={`${
+                job.archived
+                  ? "bg-gradient-to-r from-orange-500 to-yellow-600"
+                  : "bg-gradient-to-r from-gray-500 to-gray-600"
+              } text-white px-6 py-3 rounded-2xl hover:opacity-90 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50`}
+            >
+              {processing
+                ? "Processing..."
+                : job.archived
+                  ? "📦 Unarchive"
+                  : "📦 Archive"}
+            </button>
+
             {!job.completed && (
               <button
                 onClick={markEventComplete}
                 disabled={processing}
                 className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50"
               >
-                {processing ? 'Processing...' : '✓ Mark Complete'}
+                {processing ? "Processing..." : "✓ Mark Complete"}
               </button>
             )}
+
             <button
               onClick={exportToExcel}
               className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
@@ -381,16 +497,28 @@ export default function SuperAdminApplicantsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-blue-100 border-2 border-blue-300 rounded-2xl p-4 text-center">
+            <p className="text-3xl font-bold text-blue-700">
+              {applicants.length}/{job.helpers_needed * 2}
+            </p>
+            <p className="text-blue-600 font-semibold">Total Applications</p>
+          </div>
           <div className="bg-yellow-100 border-2 border-yellow-300 rounded-2xl p-4 text-center">
-            <p className="text-3xl font-bold text-yellow-700">{pendingApplicants.length}</p>
+            <p className="text-3xl font-bold text-yellow-700">
+              {pendingApplicants.length}
+            </p>
             <p className="text-yellow-600 font-semibold">Pending</p>
           </div>
           <div className="bg-green-100 border-2 border-green-300 rounded-2xl p-4 text-center">
-            <p className="text-3xl font-bold text-green-700">{acceptedApplicants.length}</p>
+            <p className="text-3xl font-bold text-green-700">
+              {acceptedApplicants.length}
+            </p>
             <p className="text-green-600 font-semibold">Accepted</p>
           </div>
           <div className="bg-red-100 border-2 border-red-300 rounded-2xl p-4 text-center">
-            <p className="text-3xl font-bold text-red-700">{rejectedApplicants.length}</p>
+            <p className="text-3xl font-bold text-red-700">
+              {rejectedApplicants.length}
+            </p>
             <p className="text-red-600 font-semibold">Rejected</p>
           </div>
         </div>
@@ -405,7 +533,9 @@ export default function SuperAdminApplicantsPage() {
             {/* Pending */}
             {pendingApplicants.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">⏳ Pending Applications</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  ⏳ Pending Applications
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {pendingApplicants.map((app, index) => (
                     <div
@@ -418,12 +548,16 @@ export default function SuperAdminApplicantsPage() {
                           {getInitials(app.name)}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-bold text-gray-800">{app.name}</h3>
+                          <h3 className="font-bold text-gray-800">
+                            {app.name}
+                          </h3>
                           <p className="text-sm text-gray-600">{app.city}</p>
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">📱 {app.phone}</p>
-                      <p className="text-sm text-gray-600">Applied: {new Date(app.applied_at).toLocaleDateString()}</p>
+                      <p className="text-sm text-gray-600">
+                        Applied: {new Date(app.applied_at).toLocaleDateString()}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -433,7 +567,9 @@ export default function SuperAdminApplicantsPage() {
             {/* Accepted */}
             {acceptedApplicants.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">✓ Accepted Applications</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  ✓ Accepted Applications
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {acceptedApplicants.map((app, index) => (
                     <div
@@ -446,12 +582,16 @@ export default function SuperAdminApplicantsPage() {
                           {getInitials(app.name)}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-bold text-gray-800">{app.name}</h3>
+                          <h3 className="font-bold text-gray-800">
+                            {app.name}
+                          </h3>
                           <p className="text-sm text-gray-600">{app.city}</p>
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">📱 {app.phone}</p>
-                      <p className="text-sm text-gray-600">Applied: {new Date(app.applied_at).toLocaleDateString()}</p>
+                      <p className="text-sm text-gray-600">
+                        Applied: {new Date(app.applied_at).toLocaleDateString()}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -461,7 +601,9 @@ export default function SuperAdminApplicantsPage() {
             {/* Rejected */}
             {rejectedApplicants.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">✗ Rejected Applications</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  ✗ Rejected Applications
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {rejectedApplicants.map((app, index) => (
                     <div
@@ -474,12 +616,16 @@ export default function SuperAdminApplicantsPage() {
                           {getInitials(app.name)}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-bold text-gray-800">{app.name}</h3>
+                          <h3 className="font-bold text-gray-800">
+                            {app.name}
+                          </h3>
                           <p className="text-sm text-gray-600">{app.city}</p>
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">📱 {app.phone}</p>
-                      <p className="text-sm text-gray-600">Applied: {new Date(app.applied_at).toLocaleDateString()}</p>
+                      <p className="text-sm text-gray-600">
+                        Applied: {new Date(app.applied_at).toLocaleDateString()}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -491,8 +637,14 @@ export default function SuperAdminApplicantsPage() {
 
       {/* Applicant Detail Dialog */}
       {showDialog && selectedApplicant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowDialog(false)}>
-          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowDialog(false)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header with Photo */}
             <div className="flex items-start gap-6 mb-6">
               <div className="w-24 h-24 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg flex-shrink-0">
@@ -502,18 +654,31 @@ export default function SuperAdminApplicantsPage() {
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">
                   {selectedApplicant.name}
                 </h2>
-                <span className={`${getStatusBadge(selectedApplicant.status)} px-4 py-2 rounded-full font-semibold text-sm shadow-lg inline-block`}>
-                  {selectedApplicant.status.charAt(0).toUpperCase() + selectedApplicant.status.slice(1)}
+                <span
+                  className={`${getStatusBadge(selectedApplicant.status)} px-4 py-2 rounded-full font-semibold text-sm shadow-lg inline-block`}
+                >
+                  {selectedApplicant.status.charAt(0).toUpperCase() +
+                    selectedApplicant.status.slice(1)}
                 </span>
 
                 {/* Stats */}
                 {seekerStats && (
                   <div className="flex gap-3 mt-3">
                     <span className="text-sm flex items-center gap-1">
-                      ⭐ <span className="font-semibold">{Number(getSeekerStatsDisplay().avgRating) > 0 ? getSeekerStatsDisplay().avgRating : "No ratings"}</span>
+                      ⭐{" "}
+                      <span className="font-semibold">
+                        {Number(getSeekerStatsDisplay().avgRating) > 0
+                          ? getSeekerStatsDisplay().avgRating
+                          : "No ratings"}
+                      </span>
                     </span>
-                    <span className={`text-sm flex items-center gap-1 ${getSeekerStatsDisplay().redFlagCount > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                      🚩 <span>{getSeekerStatsDisplay().redFlagCount} Red Flags</span>
+                    <span
+                      className={`text-sm flex items-center gap-1 ${getSeekerStatsDisplay().redFlagCount > 0 ? "text-red-600 font-semibold" : ""}`}
+                    >
+                      🚩{" "}
+                      <span>
+                        {getSeekerStatsDisplay().redFlagCount} Red Flags
+                      </span>
                     </span>
                     {getSeekerStatsDisplay().isBanned && (
                       <span className="text-red-600 font-bold text-sm">
@@ -529,19 +694,27 @@ export default function SuperAdminApplicantsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Phone</p>
-                <p className="font-semibold text-gray-800">📱 {selectedApplicant.phone}</p>
+                <p className="font-semibold text-gray-800">
+                  📱 {selectedApplicant.phone}
+                </p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Age</p>
-                <p className="font-semibold text-gray-800">{selectedApplicant.age} years</p>
+                <p className="font-semibold text-gray-800">
+                  {selectedApplicant.age} years
+                </p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">City</p>
-                <p className="font-semibold text-gray-800">📍 {selectedApplicant.city}</p>
+                <p className="font-semibold text-gray-800">
+                  📍 {selectedApplicant.city}
+                </p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Availability</p>
-                <p className="font-semibold text-gray-800">⏰ {selectedApplicant.availability}</p>
+                <p className="font-semibold text-gray-800">
+                  ⏰ {selectedApplicant.availability}
+                </p>
               </div>
             </div>
 
@@ -553,7 +726,8 @@ export default function SuperAdminApplicantsPage() {
 
             {/* Applied Date */}
             <p className="text-sm text-gray-500 mb-6">
-              Applied on: {new Date(selectedApplicant.applied_at).toLocaleDateString()}
+              Applied on:{" "}
+              {new Date(selectedApplicant.applied_at).toLocaleDateString()}
             </p>
 
             {/* Action Buttons */}
@@ -565,14 +739,14 @@ export default function SuperAdminApplicantsPage() {
                     disabled={processing}
                     className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50"
                   >
-                    {processing ? 'Processing...' : '✓ Accept'}
+                    {processing ? "Processing..." : "✓ Accept"}
                   </button>
                   <button
                     onClick={() => updateStatus("rejected")}
                     disabled={processing}
                     className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50"
                   >
-                    {processing ? 'Processing...' : '✗ Reject'}
+                    {processing ? "Processing..." : "✗ Reject"}
                   </button>
                 </div>
               )}
@@ -613,7 +787,8 @@ export default function SuperAdminApplicantsPage() {
               Add Red Flag
             </h2>
             <p className="text-gray-600 mb-4">
-              For: <span className="font-semibold">{selectedApplicant.name}</span>
+              For:{" "}
+              <span className="font-semibold">{selectedApplicant.name}</span>
             </p>
             <textarea
               placeholder="Reason for red flag (e.g., Did not show up to event)"
@@ -638,7 +813,7 @@ export default function SuperAdminApplicantsPage() {
                 disabled={processing}
                 className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg disabled:opacity-50"
               >
-                {processing ? 'Adding...' : 'Add Flag'}
+                {processing ? "Adding..." : "Add Flag"}
               </button>
             </div>
           </div>
@@ -653,7 +828,8 @@ export default function SuperAdminApplicantsPage() {
               Rate Seeker
             </h2>
             <p className="text-gray-600 mb-6">
-              For: <span className="font-semibold">{selectedApplicant.name}</span>
+              For:{" "}
+              <span className="font-semibold">{selectedApplicant.name}</span>
             </p>
 
             {/* Star Rating */}
@@ -667,7 +843,7 @@ export default function SuperAdminApplicantsPage() {
                     star <= rating
                       ? "text-yellow-500 scale-110"
                       : "text-gray-300"
-                  } ${processing ? 'opacity-50' : ''}`}
+                  } ${processing ? "opacity-50" : ""}`}
                 >
                   ⭐
                 </button>
@@ -694,7 +870,7 @@ export default function SuperAdminApplicantsPage() {
                 disabled={processing}
                 className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-3 rounded-2xl hover:from-yellow-600 hover:to-orange-700 transition-all font-semibold shadow-lg disabled:opacity-50"
               >
-                {processing ? 'Submitting...' : 'Submit Rating'}
+                {processing ? "Submitting..." : "Submit Rating"}
               </button>
             </div>
           </div>

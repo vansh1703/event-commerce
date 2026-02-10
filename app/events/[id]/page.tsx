@@ -17,7 +17,6 @@ type Job = {
 };
 
 export default function JobDetailsPage() {
-  
   const params = useParams();
   const router = useRouter();
   const jobId = params.id as string;
@@ -47,19 +46,25 @@ export default function JobDetailsPage() {
       setSeekerUser(parsedUser);
       setName(parsedUser.full_name || "");
       setPhone(parsedUser.phone || "");
-      
+
       await checkIfApplied(parsedUser.id);
     }
   };
 
   const loadJob = async () => {
     try {
-      const res = await fetch('/api/jobs', { method: 'GET' });
+      const res = await fetch("/api/jobs", { method: "GET" });
       const data = await res.json();
-      
+
       if (data.success) {
         const foundJob = data.jobs.find((j: Job) => j.id === jobId);
         if (foundJob) {
+          // ✅ Check if archived
+          if (foundJob.archived) {
+            alert("This job is no longer accepting applications.");
+            router.push("/events");
+            return;
+          }
           setJob(foundJob);
         } else {
           alert("Job not found!");
@@ -67,7 +72,7 @@ export default function JobDetailsPage() {
         }
       }
     } catch (error) {
-      console.error('Error loading job:', error);
+      console.error("Error loading job:", error);
     } finally {
       setLoading(false);
     }
@@ -75,16 +80,19 @@ export default function JobDetailsPage() {
 
   const checkIfApplied = async (seekerId: string) => {
     try {
-      const res = await fetch(`/api/applications?jobId=${jobId}&seekerId=${seekerId}`, {
-        method: 'GET',
-      });
+      const res = await fetch(
+        `/api/applications?jobId=${jobId}&seekerId=${seekerId}`,
+        {
+          method: "GET",
+        },
+      );
       const data = await res.json();
 
       if (data.success && data.applications.length > 0) {
         setAlreadyApplied(true);
       }
     } catch (error) {
-      console.error('Error checking application:', error);
+      console.error("Error checking application:", error);
     }
   };
 
@@ -93,7 +101,7 @@ export default function JobDetailsPage() {
 
     if (!seekerUser) {
       const confirmLogin = window.confirm(
-        "Please login to apply for this job. Click OK to go to login page."
+        "Please login to apply for this job. Click OK to go to login page.",
       );
       if (confirmLogin) {
         router.push("/seeker/login");
@@ -109,9 +117,9 @@ export default function JobDetailsPage() {
     setApplying(true);
 
     try {
-      const res = await fetch('/api/applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobId: jobId,
           seekerId: seekerUser.id,
@@ -127,7 +135,7 @@ export default function JobDetailsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit application');
+        throw new Error(data.error || "Failed to submit application");
       }
 
       if (data.success) {
@@ -135,7 +143,7 @@ export default function JobDetailsPage() {
         router.push("/my-applications");
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to submit application');
+      alert(error.message || "Failed to submit application");
     } finally {
       setApplying(false);
     }
@@ -187,7 +195,9 @@ export default function JobDetailsPage() {
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Helpers Needed</p>
-                <p className="font-semibold text-gray-800">{job.helpers_needed}</p>
+                <p className="font-semibold text-gray-800">
+                  {job.helpers_needed}
+                </p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Payment</p>
@@ -195,7 +205,9 @@ export default function JobDetailsPage() {
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Contact</p>
-                <p className="font-semibold text-gray-800">{job.contact_phone}</p>
+                <p className="font-semibold text-gray-800">
+                  {job.contact_phone}
+                </p>
               </div>
             </div>
 
@@ -284,7 +296,7 @@ export default function JobDetailsPage() {
                   disabled={applying}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
                 >
-                  {applying ? 'Submitting...' : 'Submit Application'}
+                  {applying ? "Submitting..." : "Submit Application"}
                 </button>
               </form>
             </>
