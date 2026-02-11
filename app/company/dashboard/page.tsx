@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import LogoutButton from "@/components/navbar/LogoutButton";
 import { apiCall } from "@/lib/api";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 type JobRequest = {
   id: string;
@@ -59,6 +59,13 @@ type Application = {
 };
 
 type SeekerStats = {
+  seekerInfo: {
+    full_name: string;
+    email: string;
+    phone: string;
+    profile_photo: string;
+    id_proof_photo: string;
+  } | null;
   avgRating: string;
   ratings: Array<{ stars: number; job_title: string; date: string }>;
   redFlags: Array<{ date: string; reason: string; job_title: string }>;
@@ -69,18 +76,23 @@ type SeekerStats = {
 
 export default function CompanyDashboard() {
   const router = useRouter();
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string>("");
   const [companyUser, setCompanyUser] = useState<any>(null);
   const [myRequests, setMyRequests] = useState<JobRequest[]>([]);
   const [approvedJobs, setApprovedJobs] = useState<Job[]>([]);
   const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  
-  const [selectedCandidate, setSelectedCandidate] = useState<Application | null>(null);
+
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<Application | null>(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [seekerStats, setSeekerStats] = useState<SeekerStats | null>(null);
-  
+
   const [showHistory, setShowHistory] = useState(false);
-  const [selectedHistoryJob, setSelectedHistoryJob] = useState<Job | null>(null);
+  const [selectedHistoryJob, setSelectedHistoryJob] = useState<Job | null>(
+    null,
+  );
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -123,37 +135,39 @@ export default function CompanyDashboard() {
   const loadData = async (companyId: string) => {
     try {
       // Load job requests
-      const requestsData = await apiCall('/job-requests', { method: 'GET' });
+      const requestsData = await apiCall("/job-requests", { method: "GET" });
       if (requestsData.success) {
         const myReqs = requestsData.jobRequests.filter(
-          (req: JobRequest) => req.company_id === companyId
+          (req: JobRequest) => req.company_id === companyId,
         );
         setMyRequests(myReqs);
       }
 
       // Load jobs
-      const jobsData = await apiCall('/jobs', { method: 'GET' });
+      const jobsData = await apiCall("/jobs", { method: "GET" });
       if (jobsData.success) {
-        const myJobs = jobsData.jobs.filter((job: Job) => job.company_id === companyId);
-        
+        const myJobs = jobsData.jobs.filter(
+          (job: Job) => job.company_id === companyId,
+        );
+
         const active = myJobs.filter(
-          (job: Job) => !job.completed && new Date(job.date) >= new Date()
+          (job: Job) => !job.completed && new Date(job.date) >= new Date(),
         );
         const completed = myJobs.filter(
-          (job: Job) => job.completed || new Date(job.date) < new Date()
+          (job: Job) => job.completed || new Date(job.date) < new Date(),
         );
-        
+
         setApprovedJobs(active);
         setCompletedJobs(completed);
       }
 
       // Load applications
-      const appsData = await apiCall('/applications', { method: 'GET' });
+      const appsData = await apiCall("/applications", { method: "GET" });
       if (appsData.success) {
         setApplications(appsData.applications);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading data:", error);
     } finally {
       setLoading(false);
     }
@@ -166,49 +180,80 @@ export default function CompanyDashboard() {
 
   const openCandidateModal = async (candidate: Application) => {
     setSelectedCandidate(candidate);
-    
+
     try {
       const data = await apiCall(`/seekers/${candidate.seeker_id}/stats`, {
-        method: 'GET',
+        method: "GET",
       });
 
       if (data.success) {
         setSeekerStats(data.stats);
       }
     } catch (error) {
-      console.error('Error loading seeker stats:', error);
+      console.error("Error loading seeker stats:", error);
     }
-    
+
     setShowCandidateModal(true);
   };
 
-  const exportCandidates = (jobId: string, jobTitle: string) => {
+  const exportCandidates = async (jobId: string, jobTitle: string) => {
     const acceptedCandidates = applications.filter(
-      (app) => app.job_id === jobId && app.status === "accepted"
+      (app) => app.job_id === jobId && app.status === "accepted",
     );
-    
+
     if (acceptedCandidates.length === 0) {
       alert("No accepted candidates to export for this job!");
       return;
     }
 
-    const exportData = acceptedCandidates.map((app) => ({
-      "Name": app.name,
-      "Phone": app.phone,
-      "Age": app.age,
-      "City": app.city,
-      "Availability": app.availability,
-      "Experience": app.experience,
-      "Applied On": new Date(app.applied_at).toLocaleDateString(),
-      "Status": "Accepted"
-    }));
+    // Fetch seeker stats for each candidate to get profile photo
+    const exportDataPromises = acceptedCandidates.map(async (app) => {
+      try {
+        const statsRes = await fetch(`/api/seekers/${app.seeker_id}/stats`);
+        const statsData = await statsRes.json();
+
+        return {
+          Name: app.name,
+          Phone: app.phone,
+          Age: app.age,
+          City: app.city,
+          Availability: app.availability,
+          Experience: app.experience,
+          "Applied On": new Date(app.applied_at).toLocaleDateString(),
+          Status: "Accepted",
+          "Profile Photo URL":
+            statsData.success && statsData.stats.seekerInfo?.profile_photo
+              ? statsData.stats.seekerInfo.profile_photo
+              : "Not available",
+          "ID Proof URL":
+            statsData.success && statsData.stats.seekerInfo?.id_proof_photo
+              ? statsData.stats.seekerInfo.id_proof_photo
+              : "Not available",
+        };
+      } catch (error) {
+        return {
+          Name: app.name,
+          Phone: app.phone,
+          Age: app.age,
+          City: app.city,
+          Availability: app.availability,
+          Experience: app.experience,
+          "Applied On": new Date(app.applied_at).toLocaleDateString(),
+          Status: "Accepted",
+          "Profile Photo URL": "Error loading",
+          "ID Proof URL": "Error loading",
+        };
+      }
+    });
+
+    const exportData = await Promise.all(exportDataPromises);
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Accepted Candidates");
-    
+
     XLSX.writeFile(workbook, `${jobTitle}_Accepted_Candidates.xlsx`);
-    alert("✅ Candidate list exported successfully!");
+    alert("✅ Candidate list exported successfully with photo URLs!");
   };
 
   const getInitials = (name: string) => {
@@ -232,7 +277,9 @@ export default function CompanyDashboard() {
   }
 
   const pendingRequests = myRequests.filter((req) => req.status === "pending");
-  const rejectedRequests = myRequests.filter((req) => req.status === "rejected");
+  const rejectedRequests = myRequests.filter(
+    (req) => req.status === "rejected",
+  );
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
@@ -261,19 +308,27 @@ export default function CompanyDashboard() {
       {/* Stats Overview */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-yellow-100 border-2 border-yellow-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-yellow-700">{pendingRequests.length}</p>
+          <p className="text-3xl font-bold text-yellow-700">
+            {pendingRequests.length}
+          </p>
           <p className="text-yellow-600 font-semibold">Pending Approval</p>
         </div>
         <div className="bg-green-100 border-2 border-green-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-green-700">{approvedJobs.length}</p>
+          <p className="text-3xl font-bold text-green-700">
+            {approvedJobs.length}
+          </p>
           <p className="text-green-600 font-semibold">Active Jobs</p>
         </div>
         <div className="bg-red-100 border-2 border-red-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-red-700">{rejectedRequests.length}</p>
+          <p className="text-3xl font-bold text-red-700">
+            {rejectedRequests.length}
+          </p>
           <p className="text-red-600 font-semibold">Rejected Requests</p>
         </div>
         <div className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-purple-700">{completedJobs.length}</p>
+          <p className="text-3xl font-bold text-purple-700">
+            {completedJobs.length}
+          </p>
           <p className="text-purple-600 font-semibold">Completed Events</p>
         </div>
       </div>
@@ -285,7 +340,8 @@ export default function CompanyDashboard() {
             onClick={() => setShowHistory(!showHistory)}
             className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg"
           >
-            {showHistory ? "Hide" : "Show"} Event History ({completedJobs.length})
+            {showHistory ? "Hide" : "Show"} Event History (
+            {completedJobs.length})
           </button>
         </div>
       )}
@@ -293,12 +349,18 @@ export default function CompanyDashboard() {
       {/* Event History Section */}
       {showHistory && (
         <div className="max-w-6xl mx-auto mb-8 bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">📜 Event History</h3>
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">
+            📜 Event History
+          </h3>
           <div className="max-h-96 overflow-y-auto space-y-2">
             {completedJobs.map((job) => {
-              const jobApplicants = applications.filter((app) => app.job_id === job.id);
-              const acceptedCount = jobApplicants.filter((app) => app.status === "accepted").length;
-              
+              const jobApplicants = applications.filter(
+                (app) => app.job_id === job.id,
+              );
+              const acceptedCount = jobApplicants.filter(
+                (app) => app.status === "accepted",
+              ).length;
+
               return (
                 <div
                   key={job.id}
@@ -307,10 +369,13 @@ export default function CompanyDashboard() {
                 >
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{job.title}</h4>
-                    <p className="text-sm text-gray-600">{job.event_type} • {job.location}</p>
+                    <p className="text-sm text-gray-600">
+                      {job.event_type} • {job.location}
+                    </p>
                     <p className="text-sm text-gray-600">Date: {job.date}</p>
                     <p className="text-sm text-gray-600">
-                      {acceptedCount} accepted • {jobApplicants.length} total applicants
+                      {acceptedCount} accepted • {jobApplicants.length} total
+                      applicants
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -341,7 +406,9 @@ export default function CompanyDashboard() {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-800">{req.title}</h3>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        {req.title}
+                      </h3>
                       <p className="text-sm text-gray-600 mt-1">
                         {req.event_type} • {req.location}
                       </p>
@@ -351,10 +418,14 @@ export default function CompanyDashboard() {
                     </span>
                   </div>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p>📅 {req.event_date} at {req.event_time}</p>
+                    <p>
+                      📅 {req.event_date} at {req.event_time}
+                    </p>
                     <p>👥 {req.helpers_needed} helpers needed</p>
                     <p>💰 Offered: {req.payment_offered}</p>
-                    <p className="text-xs text-gray-500">Submitted: {req.submitted_at}</p>
+                    <p className="text-xs text-gray-500">
+                      Submitted: {req.submitted_at}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -376,7 +447,9 @@ export default function CompanyDashboard() {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-800">{req.title}</h3>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        {req.title}
+                      </h3>
                       <p className="text-sm text-gray-600 mt-1">
                         {req.event_type} • {req.location}
                       </p>
@@ -387,12 +460,18 @@ export default function CompanyDashboard() {
                   </div>
                   {req.rejection_reason && (
                     <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-3">
-                      <p className="text-sm text-red-800 font-semibold mb-1">Rejection Reason:</p>
-                      <p className="text-sm text-red-700">{req.rejection_reason}</p>
+                      <p className="text-sm text-red-800 font-semibold mb-1">
+                        Rejection Reason:
+                      </p>
+                      <p className="text-sm text-red-700">
+                        {req.rejection_reason}
+                      </p>
                     </div>
                   )}
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p>📅 {req.event_date} at {req.event_time}</p>
+                    <p>
+                      📅 {req.event_date} at {req.event_time}
+                    </p>
                     <p>💰 Offered: {req.payment_offered}</p>
                   </div>
                 </div>
@@ -422,9 +501,15 @@ export default function CompanyDashboard() {
           ) : (
             <div className="space-y-6">
               {approvedJobs.map((job) => {
-                const jobApplicants = applications.filter((app) => app.job_id === job.id);
-                const acceptedCandidates = jobApplicants.filter((app) => app.status === "accepted");
-                const pendingCandidates = jobApplicants.filter((app) => app.status === "pending");
+                const jobApplicants = applications.filter(
+                  (app) => app.job_id === job.id,
+                );
+                const acceptedCandidates = jobApplicants.filter(
+                  (app) => app.status === "accepted",
+                );
+                const pendingCandidates = jobApplicants.filter(
+                  (app) => app.status === "pending",
+                );
 
                 return (
                   <div
@@ -438,13 +523,14 @@ export default function CompanyDashboard() {
                           {job.title}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {job.event_type} • {job.location} • {job.date} at {job.time}
+                          {job.event_type} • {job.location} • {job.date} at{" "}
+                          {job.time}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
                           💰 Posted Payment: {job.payment}
                         </p>
                       </div>
-                      
+
                       {acceptedCandidates.length > 0 && (
                         <button
                           onClick={() => exportCandidates(job.id, job.title)}
@@ -473,7 +559,8 @@ export default function CompanyDashboard() {
                     {acceptedCandidates.length === 0 ? (
                       <div className="bg-gray-50 rounded-2xl p-6 text-center">
                         <p className="text-gray-500">
-                          No candidates accepted yet. Admin is reviewing applications.
+                          No candidates accepted yet. Admin is reviewing
+                          applications.
                         </p>
                       </div>
                     ) : (
@@ -493,13 +580,23 @@ export default function CompanyDashboard() {
                                   {getInitials(candidate.name)}
                                 </div>
                                 <div className="flex-1">
-                                  <h3 className="font-bold text-gray-800">{candidate.name}</h3>
-                                  <p className="text-sm text-gray-600">{candidate.city}</p>
+                                  <h3 className="font-bold text-gray-800">
+                                    {candidate.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-600">
+                                    {candidate.city}
+                                  </p>
                                 </div>
                               </div>
-                              <p className="text-sm text-gray-600">📱 {candidate.phone}</p>
-                              <p className="text-sm text-gray-600">🎂 {candidate.age} years</p>
-                              <p className="text-sm text-gray-600">⏰ {candidate.availability}</p>
+                              <p className="text-sm text-gray-600">
+                                📱 {candidate.phone}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                🎂 {candidate.age} years
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                ⏰ {candidate.availability}
+                              </p>
                               <p className="text-xs text-green-600 mt-2 font-semibold">
                                 Click for full details →
                               </p>
@@ -528,9 +625,23 @@ export default function CompanyDashboard() {
           >
             {/* Header with Photo */}
             <div className="flex items-start gap-6 mb-6">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg flex-shrink-0">
-                {getInitials(selectedCandidate.name)}
-              </div>
+              {/* Profile Photo */}
+              {/* Profile Photo */}
+              {seekerStats?.seekerInfo?.profile_photo ? (
+                <img
+                  src={seekerStats.seekerInfo.profile_photo}
+                  alt={selectedCandidate.name}
+                  onClick={() => {
+                    setSelectedPhoto(seekerStats.seekerInfo!.profile_photo);
+                    setShowPhotoModal(true);
+                  }}
+                  className="w-24 h-24 rounded-full object-cover border-4 border-green-200 shadow-lg flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg flex-shrink-0">
+                  {getInitials(selectedCandidate.name)}
+                </div>
+              )}
               <div className="flex-1">
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">
                   {selectedCandidate.name}
@@ -569,23 +680,55 @@ export default function CompanyDashboard() {
               </div>
             </div>
 
+            {/* ✅ ID PROOF SECTION - ADDED HERE */}
+            {/* ID Proof Section */}
+            {seekerStats?.seekerInfo?.id_proof_photo && (
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  🆔 ID Proof Document
+                </h3>
+                <div className="bg-gray-50 rounded-2xl p-4 border-2 border-green-200">
+                  <img
+                    src={seekerStats.seekerInfo.id_proof_photo}
+                    alt="ID Proof"
+                    onClick={() => {
+                      setSelectedPhoto(seekerStats.seekerInfo!.id_proof_photo);
+                      setShowPhotoModal(true);
+                    }}
+                    className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                  <p className="text-green-600 text-sm font-semibold mt-2">
+                    🔍 Click image to enlarge
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Phone</p>
-                <p className="font-semibold text-gray-800">📱 {selectedCandidate.phone}</p>
+                <p className="font-semibold text-gray-800">
+                  📱 {selectedCandidate.phone}
+                </p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Age</p>
-                <p className="font-semibold text-gray-800">{selectedCandidate.age} years</p>
+                <p className="font-semibold text-gray-800">
+                  {selectedCandidate.age} years
+                </p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">City</p>
-                <p className="font-semibold text-gray-800">📍 {selectedCandidate.city}</p>
+                <p className="font-semibold text-gray-800">
+                  📍 {selectedCandidate.city}
+                </p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Availability</p>
-                <p className="font-semibold text-gray-800">⏰ {selectedCandidate.availability}</p>
+                <p className="font-semibold text-gray-800">
+                  ⏰ {selectedCandidate.availability}
+                </p>
               </div>
             </div>
 
@@ -597,44 +740,63 @@ export default function CompanyDashboard() {
 
             {/* Applied Date */}
             <p className="text-sm text-gray-500 mb-6">
-              Applied on: {new Date(selectedCandidate.applied_at).toLocaleDateString()}
+              Applied on:{" "}
+              {new Date(selectedCandidate.applied_at).toLocaleDateString()}
             </p>
 
             {/* Red Flags (if any) */}
-            {seekerStats && seekerStats.redFlags && seekerStats.redFlags.length > 0 && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6">
-                <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2">
-                  🚩 Red Flags ({seekerStats.redFlags.length})
-                </h3>
-                <div className="space-y-2">
-                  {seekerStats.redFlags.map((flag, idx) => (
-                    <div key={idx} className="bg-white rounded-lg p-3 border border-red-200">
-                      <p className="text-sm font-semibold text-red-700">{flag.job_title}</p>
-                      <p className="text-sm text-red-600">{flag.reason}</p>
-                      <p className="text-xs text-red-500 mt-1">{flag.date}</p>
-                    </div>
-                  ))}
+            {seekerStats &&
+              seekerStats.redFlags &&
+              seekerStats.redFlags.length > 0 && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6">
+                  <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2">
+                    🚩 Red Flags ({seekerStats.redFlags.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {seekerStats.redFlags.map((flag, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white rounded-lg p-3 border border-red-200"
+                      >
+                        <p className="text-sm font-semibold text-red-700">
+                          {flag.job_title}
+                        </p>
+                        <p className="text-sm text-red-600">{flag.reason}</p>
+                        <p className="text-xs text-red-500 mt-1">{flag.date}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Ratings (if any) */}
-            {seekerStats && seekerStats.ratings && seekerStats.ratings.length > 0 && (
-              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-6">
-                <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
-                  ⭐ Previous Ratings ({seekerStats.ratings.length})
-                </h3>
-                <div className="space-y-2">
-                  {seekerStats.ratings.map((rating, idx) => (
-                    <div key={idx} className="bg-white rounded-lg p-3 border border-yellow-200">
-                      <p className="text-sm font-semibold text-yellow-700">{rating.job_title}</p>
-                      <p className="text-sm text-yellow-600">{"⭐".repeat(rating.stars)} ({rating.stars}/5)</p>
-                      <p className="text-xs text-yellow-500 mt-1">{rating.date}</p>
-                    </div>
-                  ))}
+            {seekerStats &&
+              seekerStats.ratings &&
+              seekerStats.ratings.length > 0 && (
+                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-6">
+                  <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
+                    ⭐ Previous Ratings ({seekerStats.ratings.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {seekerStats.ratings.map((rating, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white rounded-lg p-3 border border-yellow-200"
+                      >
+                        <p className="text-sm font-semibold text-yellow-700">
+                          {rating.job_title}
+                        </p>
+                        <p className="text-sm text-yellow-600">
+                          {"⭐".repeat(rating.stars)} ({rating.stars}/5)
+                        </p>
+                        <p className="text-xs text-yellow-500 mt-1">
+                          {rating.date}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <button
               onClick={() => setShowCandidateModal(false)}
@@ -664,7 +826,8 @@ export default function CompanyDashboard() {
                     {selectedHistoryJob.title}
                   </h2>
                   <p className="text-gray-600">
-                    {selectedHistoryJob.event_type} • {selectedHistoryJob.location}
+                    {selectedHistoryJob.event_type} •{" "}
+                    {selectedHistoryJob.location}
                   </p>
                   <p className="text-gray-600">
                     📅 {selectedHistoryJob.date} at {selectedHistoryJob.time}
@@ -676,9 +839,18 @@ export default function CompanyDashboard() {
               </div>
 
               {/* Export Button */}
-              {applications.filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted").length > 0 && (
+              {applications.filter(
+                (app) =>
+                  app.job_id === selectedHistoryJob.id &&
+                  app.status === "accepted",
+              ).length > 0 && (
                 <button
-                  onClick={() => exportCandidates(selectedHistoryJob.id, selectedHistoryJob.title)}
+                  onClick={() =>
+                    exportCandidates(
+                      selectedHistoryJob.id,
+                      selectedHistoryJob.title,
+                    )
+                  }
                   className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2 mb-6"
                 >
                   📊 Export to Excel
@@ -688,7 +860,9 @@ export default function CompanyDashboard() {
 
             {/* Event Description */}
             <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-              <h3 className="font-bold text-gray-800 mb-2">Event Description:</h3>
+              <h3 className="font-bold text-gray-800 mb-2">
+                Event Description:
+              </h3>
               <p className="text-gray-700">{selectedHistoryJob.description}</p>
               <div className="mt-3 space-y-1 text-sm text-gray-600">
                 <p>👥 Helpers Needed: {selectedHistoryJob.helpers_needed}</p>
@@ -699,17 +873,35 @@ export default function CompanyDashboard() {
             {/* Accepted Candidates Section */}
             <div>
               <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                Accepted Candidates ({applications.filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted").length})
+                Accepted Candidates (
+                {
+                  applications.filter(
+                    (app) =>
+                      app.job_id === selectedHistoryJob.id &&
+                      app.status === "accepted",
+                  ).length
+                }
+                )
               </h3>
 
-              {applications.filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted").length === 0 ? (
+              {applications.filter(
+                (app) =>
+                  app.job_id === selectedHistoryJob.id &&
+                  app.status === "accepted",
+              ).length === 0 ? (
                 <div className="bg-gray-50 rounded-2xl p-8 text-center">
-                  <p className="text-gray-500">No candidates were accepted for this event.</p>
+                  <p className="text-gray-500">
+                    No candidates were accepted for this event.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {applications
-                    .filter((app) => app.job_id === selectedHistoryJob.id && app.status === "accepted")
+                    .filter(
+                      (app) =>
+                        app.job_id === selectedHistoryJob.id &&
+                        app.status === "accepted",
+                    )
                     .map((candidate) => (
                       <div
                         key={candidate.id}
@@ -721,11 +913,15 @@ export default function CompanyDashboard() {
                             {getInitials(candidate.name)}
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-bold text-gray-800">{candidate.name}</h3>
-                            <p className="text-sm text-gray-600">{candidate.city}</p>
+                            <h3 className="font-bold text-gray-800">
+                              {candidate.name}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {candidate.city}
+                            </p>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-1 text-sm text-gray-600 mb-3">
                           <p>📱 {candidate.phone}</p>
                           <p>🎂 {candidate.age} years</p>
@@ -747,6 +943,29 @@ export default function CompanyDashboard() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Enlarge Modal */}
+      {showPhotoModal && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4"
+          onClick={() => setShowPhotoModal(false)}
+        >
+          <div className="relative max-w-6xl max-h-[90vh]">
+            <button
+              onClick={() => setShowPhotoModal(false)}
+              className="absolute -top-12 right-0 text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold"
+            >
+              ✕ Close
+            </button>
+            <img
+              src={selectedPhoto}
+              alt="Enlarged"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}

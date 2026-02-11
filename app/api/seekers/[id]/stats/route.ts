@@ -9,6 +9,15 @@ export async function GET(
     const params = await context.params;
     const seekerId = params.id;
 
+    console.log('📊 Getting stats for seeker:', seekerId);
+
+    // Get seeker info (including photos)
+    const { data: seeker } = await supabaseAdmin
+      .from('users')
+      .select('full_name, email, phone, profile_photo, id_proof_photo')
+      .eq('id', seekerId)
+      .single();
+
     // Get ratings
     const { data: ratings } = await supabaseAdmin
       .from('ratings')
@@ -41,6 +50,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       stats: {
+        seekerInfo: seeker || null,
         avgRating,
         ratings: ratings || [],
         redFlags: redFlags || [],
