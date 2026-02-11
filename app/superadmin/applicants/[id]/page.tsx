@@ -40,22 +40,17 @@ type Application = {
   status: "pending" | "accepted" | "rejected";
 };
 
-type Rating = {
-  stars: number;
-  job_title: string;
-  date: string;
-};
-
-type RedFlag = {
-  date: string;
-  reason: string;
-  job_title: string;
-};
-
 type SeekerStats = {
+  seekerInfo: {
+    full_name: string;
+    email: string;
+    phone: string;
+    profile_photo: string;
+    id_proof_photo: string;
+  } | null;
   avgRating: string;
-  ratings: Rating[];
-  redFlags: RedFlag[];
+  ratings: any[];
+  redFlags: any[];
   redFlagCount: number;
   isBanned: boolean;
   bannedUntil: string | null;
@@ -66,6 +61,8 @@ export default function SuperAdminApplicantsPage() {
   const router = useRouter();
   const jobId = params.id as string;
 
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string>("");
   const [job, setJob] = useState<Job | null>(null);
   const [applicants, setApplicants] = useState<Application[]>([]);
   const [selectedApplicant, setSelectedApplicant] =
@@ -270,7 +267,8 @@ export default function SuperAdminApplicantsPage() {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    // 1. Filter for accepted applicants
     const acceptedApplicants = applicants.filter(
       (app) => app.status === "accepted",
     );
@@ -280,22 +278,57 @@ export default function SuperAdminApplicantsPage() {
       return;
     }
 
-    const exportData = acceptedApplicants.map((app) => ({
-      Name: app.name,
-      Phone: app.phone,
-      Age: app.age,
-      City: app.city,
-      Availability: app.availability,
-      Experience: app.experience,
-      "Applied On": app.applied_at,
-      Status: "Accepted",
-    }));
+    // 2. Map through applicants and fetch their extra data (photos)
+    const exportDataPromises = acceptedApplicants.map(async (app) => {
+      try {
+        const statsRes = await fetch(`/api/seekers/${app.seeker_id}/stats`);
+        const statsData = await statsRes.json();
 
+        // Extract seekerInfo safely
+        const info = statsData.success ? statsData.stats.seekerInfo : null;
+
+        return {
+          Name: app.name,
+          Phone: app.phone,
+          Age: app.age,
+          City: app.city,
+          Availability: app.availability,
+          Experience: app.experience,
+          "Applied On": new Date(app.applied_at).toLocaleDateString(),
+          Status: "Accepted",
+          // Added the Photo URLs similar to your reference function
+          "Profile Photo URL": info?.profile_photo ?? "Not available",
+          "ID Proof URL": info?.id_proof_photo ?? "Not available",
+        };
+      } catch (error) {
+        console.error(`Error fetching stats for ${app.name}:`, error);
+        return {
+          Name: app.name,
+          Phone: app.phone,
+          Age: app.age,
+          City: app.city,
+          Availability: app.availability,
+          Experience: app.experience,
+          "Applied On": new Date(app.applied_at).toLocaleDateString(),
+          Status: "Accepted",
+          "Profile Photo URL": "Error loading",
+          "ID Proof URL": "Error loading",
+        };
+      }
+    });
+
+    // 3. Wait for all API calls to finish
+    const exportData = await Promise.all(exportDataPromises);
+
+    // 4. Create the Excel workbook
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Accepted Applicants");
 
-    XLSX.writeFile(workbook, `${job?.title}_Accepted_Applicants.xlsx`);
+    // 5. Save the file
+    XLSX.writeFile(workbook, `${job?.title || "Job"}_Accepted_Applicants.xlsx`);
+
+    alert("✅ Exported successfully with seeker photos!");
   };
 
   const getSeekerStatsDisplay = () => {
@@ -450,7 +483,6 @@ export default function SuperAdminApplicantsPage() {
             <p className="text-gray-600 mt-1">
               🏢 {job.company_name} • {job.date} • Posted: {job.payment}
             </p>
-            {/* ✅ ADD THIS */}
             {job.archived && (
               <span className="inline-block mt-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold">
                 📦 ARCHIVED
@@ -459,7 +491,6 @@ export default function SuperAdminApplicantsPage() {
           </div>
 
           <div className="flex gap-3 flex-wrap">
-            {/* ✅ ADD THIS BUTTON */}
             <button
               onClick={toggleArchive}
               disabled={processing}
@@ -496,7 +527,7 @@ export default function SuperAdminApplicantsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-blue-100 border-2 border-blue-300 rounded-2xl p-4 text-center">
             <p className="text-3xl font-bold text-blue-700">
               {applicants.length}/{job.helpers_needed * 2}
@@ -647,9 +678,22 @@ export default function SuperAdminApplicantsPage() {
           >
             {/* Header with Photo */}
             <div className="flex items-start gap-6 mb-6">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg flex-shrink-0">
-                {getInitials(selectedApplicant.name)}
-              </div>
+              {/* Profile Photo */}
+              {seekerStats?.seekerInfo?.profile_photo ? (
+                <img
+                  src={seekerStats.seekerInfo.profile_photo}
+                  alt={selectedApplicant.name}
+                  onClick={() => {
+                    setSelectedPhoto(seekerStats.seekerInfo!.profile_photo);
+                    setShowPhotoModal(true);
+                  }}
+                  className="w-24 h-24 rounded-full object-cover border-4 border-indigo-200 shadow-lg flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg flex-shrink-0">
+                  {getInitials(selectedApplicant.name)}
+                </div>
+              )}
               <div className="flex-1">
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">
                   {selectedApplicant.name}
@@ -689,6 +733,29 @@ export default function SuperAdminApplicantsPage() {
                 )}
               </div>
             </div>
+
+            {/* ✅ ID PROOF SECTION - ADDED HERE */}
+            {seekerStats?.seekerInfo?.id_proof_photo && (
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  🆔 ID Proof Document
+                </h3>
+                <div className="bg-gray-50 rounded-2xl p-4 border-2 border-indigo-200">
+                  <img
+                    src={seekerStats.seekerInfo.id_proof_photo}
+                    alt="ID Proof"
+                    onClick={() => {
+                      setSelectedPhoto(seekerStats.seekerInfo!.id_proof_photo);
+                      setShowPhotoModal(true);
+                    }}
+                    className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                  <p className="text-indigo-600 text-sm font-semibold mt-2">
+                    🔍 Click image to enlarge
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -873,6 +940,29 @@ export default function SuperAdminApplicantsPage() {
                 {processing ? "Submitting..." : "Submit Rating"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Enlarge Modal */}
+      {showPhotoModal && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4"
+          onClick={() => setShowPhotoModal(false)}
+        >
+          <div className="relative max-w-6xl max-h-[90vh]">
+            <button
+              onClick={() => setShowPhotoModal(false)}
+              className="absolute -top-12 right-0 text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold"
+            >
+              ✕ Close
+            </button>
+            <img
+              src={selectedPhoto}
+              alt="Enlarged"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}

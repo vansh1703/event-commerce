@@ -3,7 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, phone } = await request.json();
+    const { name, email, password, phone, profilePhoto, idProofPhoto } = await request.json();
+
+    console.log('Seeker signup:', { name, email, phone });
+    console.log('Photos:', { profilePhoto, idProofPhoto });
 
     // Check if exists
     const { data: existing } = await supabaseAdmin
@@ -25,14 +28,22 @@ export async function POST(request: Request) {
         user_type: 'seeker',
         full_name: name,
         phone,
+        profile_photo: profilePhoto,
+        id_proof_photo: idProofPhoto,
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Insert error:', error);
+      throw error;
+    }
+
+    console.log('User created:', user);
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
+    console.error('Signup error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
