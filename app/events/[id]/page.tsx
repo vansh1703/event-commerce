@@ -14,6 +14,8 @@ type Job = {
   payment: string;
   description: string;
   contact_phone: string;
+  archived: boolean;
+  completed: boolean;
 };
 
 export default function JobDetailsPage() {
@@ -59,12 +61,8 @@ export default function JobDetailsPage() {
       if (data.success) {
         const foundJob = data.jobs.find((j: Job) => j.id === jobId);
         if (foundJob) {
-          // ✅ Check if archived
-          if (foundJob.archived) {
-            alert("This job is no longer accepting applications.");
-            router.push("/events");
-            return;
-          }
+          // ✅ ALLOW VIEWING ARCHIVED/COMPLETED JOBS
+          // Just set the job, don't redirect
           setJob(foundJob);
         } else {
           alert("Job not found!");
@@ -84,7 +82,7 @@ export default function JobDetailsPage() {
         `/api/applications?jobId=${jobId}&seekerId=${seekerId}`,
         {
           method: "GET",
-        },
+        }
       );
       const data = await res.json();
 
@@ -101,7 +99,7 @@ export default function JobDetailsPage() {
 
     if (!seekerUser) {
       const confirmLogin = window.confirm(
-        "Please login to apply for this job. Click OK to go to login page.",
+        "Please login to apply for this job. Click OK to go to login page."
       );
       if (confirmLogin) {
         router.push("/seeker/login");
@@ -111,6 +109,17 @@ export default function JobDetailsPage() {
 
     if (alreadyApplied) {
       alert("You have already applied for this job!");
+      return;
+    }
+
+    // ✅ PREVENT APPLYING TO ARCHIVED/COMPLETED JOBS
+    if (job?.archived) {
+      alert("This job is no longer accepting applications (archived).");
+      return;
+    }
+
+    if (job?.completed) {
+      alert("This job is no longer accepting applications (completed).");
       return;
     }
 
@@ -162,6 +171,11 @@ export default function JobDetailsPage() {
 
   if (!job) return null;
 
+  // ✅ CHECK IF JOB IS NO LONGER ACCEPTING APPLICATIONS
+  const canApply = !job.archived && !job.completed && !alreadyApplied;
+  const isArchived = job.archived;
+  const isCompleted = job.completed;
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
       <div className="max-w-3xl mx-auto">
@@ -173,9 +187,36 @@ export default function JobDetailsPage() {
         </button>
 
         <div className="bg-white shadow-2xl rounded-3xl p-8 border border-gray-100">
-          <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {job.title}
-          </h1>
+          <div className="flex justify-between items-start mb-6">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              {job.title}
+            </h1>
+            
+            {/* ✅ SHOW STATUS BADGES */}
+            {isArchived && (
+              <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-semibold">
+                📦 ARCHIVED
+              </span>
+            )}
+            {isCompleted && (
+              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                ✓ COMPLETED
+              </span>
+            )}
+          </div>
+
+          {/* ✅ SHOW WARNING IF ARCHIVED/COMPLETED */}
+          {(isArchived || isCompleted) && (
+            <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4 mb-6">
+              <p className="text-orange-800 font-semibold text-sm">
+                ⚠️ This job is no longer accepting new applications.
+              </p>
+              <p className="text-orange-700 text-xs mt-1">
+                {isArchived && "The position has been archived by the admin."}
+                {isCompleted && "This event has already been completed."}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-4 mb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -217,6 +258,7 @@ export default function JobDetailsPage() {
             </div>
           </div>
 
+          {/* ✅ CONDITIONAL RENDERING BASED ON STATUS */}
           {alreadyApplied ? (
             <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-6 text-center">
               <p className="text-green-800 font-semibold text-lg mb-2">
@@ -225,6 +267,24 @@ export default function JobDetailsPage() {
               <p className="text-green-600">
                 You have already applied for this job.
               </p>
+              <button
+                onClick={() => router.push("/my-applications")}
+                className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
+              >
+                View My Applications
+              </button>
+            </div>
+          ) : !canApply ? (
+            <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-6 text-center">
+              <p className="text-gray-600 mb-4">
+                This job is no longer accepting applications.
+              </p>
+              <button
+                onClick={() => router.push("/events")}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
+              >
+                Browse Other Jobs
+              </button>
             </div>
           ) : (
             <>

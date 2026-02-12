@@ -9,33 +9,88 @@ export default function SeekerNavbar() {
   const [stats, setStats] = useState<any>(null);
   const [seekerUser, setSeekerUser] = useState<any>(null);
   const [profilePhoto, setProfilePhoto] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    loadStatsFromCache();
   }, []);
 
-  const loadStats = async () => {
+  const loadStatsFromCache = async () => {
     const user = localStorage.getItem("seekerUser");
     if (!user) return;
 
     const parsedUser = JSON.parse(user);
     setSeekerUser(parsedUser);
 
+    // Try to load from cache first
+    const cachedStats = localStorage.getItem(`seekerStats_${parsedUser.id}`);
+    const cacheTimestamp = localStorage.getItem(`seekerStatsTime_${parsedUser.id}`);
+    
+    // Cache is valid for 5 minutes
+    const CACHE_DURATION = 5 * 60 * 1000;
+    const isCacheValid = cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < CACHE_DURATION;
+
+    if (cachedStats && isCacheValid) {
+      // Use cached data
+      const cached = JSON.parse(cachedStats);
+      setStats(cached);
+      if (cached.seekerInfo?.profile_photo) {
+        setProfilePhoto(cached.seekerInfo.profile_photo);
+      }
+      setLoading(false);
+      
+      // Refresh in background
+      refreshStatsInBackground(parsedUser.id);
+    } else {
+      // Fetch fresh data
+      await fetchStats(parsedUser.id);
+    }
+  };
+
+  const fetchStats = async (userId: string) => {
     try {
-      const res = await fetch(`/api/seekers/${parsedUser.id}/stats`, {
+      const res = await fetch(`/api/seekers/${userId}/stats`, {
         method: "GET",
       });
       const data = await res.json();
 
       if (data.success) {
         setStats(data.stats);
-        // Get profile photo from stats safely
+        
+        // Cache the stats
+        localStorage.setItem(`seekerStats_${userId}`, JSON.stringify(data.stats));
+        localStorage.setItem(`seekerStatsTime_${userId}`, Date.now().toString());
+        
         if (data.stats.seekerInfo?.profile_photo) {
           setProfilePhoto(data.stats.seekerInfo.profile_photo);
         }
       }
     } catch (error) {
       console.error("Error loading stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshStatsInBackground = async (userId: string) => {
+    // Silently refresh stats without showing loading state
+    try {
+      const res = await fetch(`/api/seekers/${userId}/stats`, {
+        method: "GET",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setStats(data.stats);
+        localStorage.setItem(`seekerStats_${userId}`, JSON.stringify(data.stats));
+        localStorage.setItem(`seekerStatsTime_${userId}`, Date.now().toString());
+        
+        if (data.stats.seekerInfo?.profile_photo) {
+          setProfilePhoto(data.stats.seekerInfo.profile_photo);
+        }
+      }
+    } catch (error) {
+      console.error("Background refresh failed:", error);
     }
   };
 
@@ -48,10 +103,24 @@ export default function SeekerNavbar() {
       .slice(0, 2);
   };
 
+  if (loading) {
+    return (
+      <nav className="flex justify-between items-center mb-10 p-4 bg-white/70 backdrop-blur-md rounded-2xl border border-gray-100 shadow-sm">
+        <div className="animate-pulse flex items-center gap-4">
+          <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+          <div className="h-6 w-32 bg-gray-200 rounded"></div>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-10 w-24 bg-gray-200 rounded-xl"></div>
+          <div className="h-10 w-24 bg-gray-200 rounded-xl"></div>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 p-4 bg-white/70 backdrop-blur-md rounded-2xl border border-gray-100 shadow-sm">
       <div className="flex items-center gap-4">
-        {/* Compact Profile Photo Container */}
         <div className="relative">
           {profilePhoto ? (
             <img
@@ -64,8 +133,6 @@ export default function SeekerNavbar() {
               {getInitials(seekerUser?.full_name || "JS")}
             </div>
           )}
-          
-          {/* Optional: Small Green Dot for "Active" status */}
           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
         </div>
 
@@ -102,7 +169,6 @@ export default function SeekerNavbar() {
         </div>
       </div>
 
-      {/* Navigation Buttons */}
       <div className="flex gap-2 md:gap-3 flex-wrap w-full md:w-auto">
         <button
           onClick={() => router.push("/events")}

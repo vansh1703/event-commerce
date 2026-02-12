@@ -818,6 +818,43 @@ export default function SuperAdminApplicantsPage() {
                 </div>
               )}
 
+              {selectedApplicant.status === "accepted" && !job.completed && (
+                <button
+                  onClick={async () => {
+                    if (
+                      !confirm(
+                        "Cancel this approval? Candidate will be moved back to pending.",
+                      )
+                    )
+                      return;
+
+                    setProcessing(true);
+                    try {
+                      const data = await apiCall(
+                        `/applications/${selectedApplicant.id}/cancel-approval`,
+                        {
+                          method: "POST",
+                        },
+                      );
+
+                      if (data.success) {
+                        alert("✅ Approval canceled!");
+                        setShowDialog(false);
+                        await loadData();
+                      }
+                    } catch (error: any) {
+                      alert(error.message || "Failed to cancel approval");
+                    } finally {
+                      setProcessing(false);
+                    }
+                  }}
+                  disabled={processing}
+                  className="w-full bg-gradient-to-r from-orange-500 to-yellow-600 text-white py-3 rounded-2xl hover:from-orange-600 hover:to-yellow-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50"
+                >
+                  {processing ? "Processing..." : "↩️ Cancel Approval"}
+                </button>
+              )}
+
               {selectedApplicant.status === "accepted" && job.completed && (
                 <div className="flex gap-3">
                   <button

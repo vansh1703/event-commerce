@@ -56,12 +56,12 @@ export default function MyApplicationsPage() {
     try {
       // Load applications
       const appsRes = await fetch(`/api/applications?seekerId=${seekerId}`, {
-        method: 'GET',
+        method: "GET",
       });
       const appsData = await appsRes.json();
 
       // Load all jobs
-      const jobsRes = await fetch('/api/jobs', { method: 'GET' });
+      const jobsRes = await fetch("/api/jobs", { method: "GET" });
       const jobsData = await jobsRes.json();
 
       if (appsData.success && jobsData.success) {
@@ -69,7 +69,7 @@ export default function MyApplicationsPage() {
         setJobs(jobsData.jobs);
       }
     } catch (error) {
-      console.error('Error loading applications:', error);
+      console.error("Error loading applications:", error);
     } finally {
       setLoading(false);
     }
@@ -84,7 +84,7 @@ export default function MyApplicationsPage() {
 
     try {
       const res = await fetch(`/api/applications/${applicationId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       const data = await res.json();
@@ -94,7 +94,7 @@ export default function MyApplicationsPage() {
         await loadApplications(seekerUser.id);
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to withdraw application');
+      alert(error.message || "Failed to withdraw application");
     }
   };
 
@@ -164,10 +164,14 @@ export default function MyApplicationsPage() {
                   key={app.id}
                   className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100"
                 >
+                  {/* ✅ UPDATED: Make job title clickable */}
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                    <div className="flex-1">
-                      <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                        {job.title}
+                    <div
+                      className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => router.push(`/events/${job.id}`)}
+                    >
+                      <h2 className="text-2xl font-bold text-gray-800 mb-2 hover:text-indigo-600 transition-colors">
+                        {job.title} →
                       </h2>
                       <p className="text-sm text-gray-600">
                         {job.event_type} • {job.location}
@@ -176,12 +180,15 @@ export default function MyApplicationsPage() {
                         📅 {job.date} at {job.time}
                       </p>
                       <p className="text-sm text-gray-600">💰 {job.payment}</p>
+                      <p className="text-xs text-indigo-600 mt-1 font-semibold">
+                        Click to view job details
+                      </p>
                     </div>
 
                     <span
                       className={`${getStatusBadge(
                         app.status
-                      )} px-4 py-2 rounded-full font-semibold text-sm shadow-lg`}
+                      )} px-4 py-2 rounded-full font-semibold text-sm shadow-lg flex-shrink-0`}
                     >
                       {app.status === "pending" && "⏳ Pending Review"}
                       {app.status === "accepted" && "✓ Accepted"}

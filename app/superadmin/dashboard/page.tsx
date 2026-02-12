@@ -57,7 +57,9 @@ export default function SuperAdminDashboard() {
   const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [allRequests, setAllRequests] = useState<JobRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<JobRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<JobRequest | null>(
+    null,
+  );
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -93,34 +95,34 @@ export default function SuperAdminDashboard() {
   const loadData = async () => {
     try {
       // Load job requests
-      const requestsData = await apiCall('/job-requests', { method: 'GET' });
+      const requestsData = await apiCall("/job-requests", { method: "GET" });
 
       if (requestsData.success) {
         const pending = requestsData.jobRequests.filter(
-          (req: JobRequest) => req.status === "pending"
+          (req: JobRequest) => req.status === "pending",
         );
         setPendingRequests(pending);
         setAllRequests(requestsData.jobRequests);
       }
 
       // Load jobs
-      const jobsData = await apiCall('/jobs', { method: 'GET' });
+      const jobsData = await apiCall("/jobs", { method: "GET" });
 
       if (jobsData.success) {
         const activeJobs = jobsData.jobs.filter(
-          (job: Job) => !job.completed && new Date(job.date) >= new Date()
+          (job: Job) => !job.completed && new Date(job.date) >= new Date(),
         );
         setMyJobs(activeJobs);
       }
 
       // Load applications
-      const appsData = await apiCall('/applications', { method: 'GET' });
+      const appsData = await apiCall("/applications", { method: "GET" });
 
       if (appsData.success) {
         setApplications(appsData.applications);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading data:", error);
     } finally {
       setLoading(false);
     }
@@ -143,16 +145,19 @@ export default function SuperAdminDashboard() {
     setProcessing(true);
 
     try {
-      const data = await apiCall(`/job-requests/${selectedRequest.id}/approve`, {
-        method: 'POST',
-        body: JSON.stringify({
-          finalTitle,
-          finalPayment,
-          finalDescription,
-          postedBy: 'admin@eventhire.com',
-          requestData: selectedRequest,
-        }),
-      });
+      const data = await apiCall(
+        `/job-requests/${selectedRequest.id}/approve`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            finalTitle,
+            finalPayment,
+            finalDescription,
+            postedBy: "admin@eventhire.com",
+            requestData: selectedRequest,
+          }),
+        },
+      );
 
       if (data.success) {
         alert("✅ Job approved and posted successfully!");
@@ -161,7 +166,7 @@ export default function SuperAdminDashboard() {
         await loadData();
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to approve job');
+      alert(error.message || "Failed to approve job");
     } finally {
       setProcessing(false);
     }
@@ -177,7 +182,7 @@ export default function SuperAdminDashboard() {
 
     try {
       const data = await apiCall(`/job-requests/${selectedRequest.id}/reject`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ rejectionReason }),
       });
 
@@ -189,7 +194,7 @@ export default function SuperAdminDashboard() {
         await loadData();
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to reject request');
+      alert(error.message || "Failed to reject request");
     } finally {
       setProcessing(false);
     }
@@ -206,8 +211,12 @@ export default function SuperAdminDashboard() {
     );
   }
 
-  const pendingAppsCount = applications.filter((app) => app.status === "pending").length;
-  const acceptedAppsCount = applications.filter((app) => app.status === "accepted").length;
+  const pendingAppsCount = applications.filter(
+    (app) => app.status === "pending",
+  ).length;
+  const acceptedAppsCount = applications.filter(
+    (app) => app.status === "accepted",
+  ).length;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
@@ -217,15 +226,17 @@ export default function SuperAdminDashboard() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
             👑 SuperAdmin Dashboard
           </h1>
-          <p className="text-gray-600 mt-2">Full platform control & management</p>
+          <p className="text-gray-600 mt-2">
+            Full platform control & management
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowHistory(!showHistory)}
+            onClick={() => router.push("/superadmin/all-requests")}
             className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg"
           >
-            {showHistory ? "Hide" : "Show"} All Requests
+            View All Requests
           </button>
           <LogoutButton />
         </div>
@@ -234,7 +245,9 @@ export default function SuperAdminDashboard() {
       {/* Stats Overview */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-yellow-100 border-2 border-yellow-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-yellow-700">{pendingRequests.length}</p>
+          <p className="text-3xl font-bold text-yellow-700">
+            {pendingRequests.length}
+          </p>
           <p className="text-yellow-600 font-semibold">Pending Requests</p>
         </div>
         <div className="bg-blue-100 border-2 border-blue-300 rounded-2xl p-4 text-center">
@@ -242,11 +255,15 @@ export default function SuperAdminDashboard() {
           <p className="text-blue-600 font-semibold">Active Jobs</p>
         </div>
         <div className="bg-green-100 border-2 border-green-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-green-700">{pendingAppsCount}</p>
+          <p className="text-3xl font-bold text-green-700">
+            {pendingAppsCount}
+          </p>
           <p className="text-green-600 font-semibold">Pending Applications</p>
         </div>
         <div className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-purple-700">{acceptedAppsCount}</p>
+          <p className="text-3xl font-bold text-purple-700">
+            {acceptedAppsCount}
+          </p>
           <p className="text-purple-600 font-semibold">Accepted Candidates</p>
         </div>
       </div>
@@ -264,7 +281,9 @@ export default function SuperAdminDashboard() {
                 className="flex justify-between items-center p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200"
               >
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-800">{request.title}</h4>
+                  <h4 className="font-semibold text-gray-800">
+                    {request.title}
+                  </h4>
                   <p className="text-sm text-gray-600">
                     {request.company_name} • {request.event_date}
                   </p>
@@ -318,7 +337,9 @@ export default function SuperAdminDashboard() {
                       <h3 className="text-xl font-bold text-gray-800">
                         {request.title}
                       </h3>
-                      <p className="text-sm text-gray-600">🏢 {request.company_name}</p>
+                      <p className="text-sm text-gray-600">
+                        🏢 {request.company_name}
+                      </p>
                       <p className="text-sm text-gray-500">
                         Submitted: {request.submitted_at}
                       </p>
@@ -330,14 +351,16 @@ export default function SuperAdminDashboard() {
 
                   <div className="space-y-2 text-sm mb-4">
                     <p className="text-gray-600">
-                      <span className="font-medium">Type:</span> {request.event_type}
+                      <span className="font-medium">Type:</span>{" "}
+                      {request.event_type}
                     </p>
                     <p className="text-gray-600">
-                      <span className="font-medium">Location:</span> {request.location}
+                      <span className="font-medium">Location:</span>{" "}
+                      {request.location}
                     </p>
                     <p className="text-gray-600">
-                      <span className="font-medium">Date:</span> {request.event_date} at{" "}
-                      {request.event_time}
+                      <span className="font-medium">Date:</span>{" "}
+                      {request.event_date} at {request.event_time}
                     </p>
                     <p className="text-gray-600">
                       <span className="font-medium">Helpers:</span>{" "}
@@ -386,19 +409,21 @@ export default function SuperAdminDashboard() {
             <div className="space-y-4">
               {myJobs.map((job) => {
                 const jobApplicants = applications.filter(
-                  (app) => app.job_id === job.id
+                  (app) => app.job_id === job.id,
                 );
                 const pendingCount = jobApplicants.filter(
-                  (app) => app.status === "pending"
+                  (app) => app.status === "pending",
                 ).length;
                 const acceptedCount = jobApplicants.filter(
-                  (app) => app.status === "accepted"
+                  (app) => app.status === "accepted",
                 ).length;
 
                 return (
                   <div
                     key={job.id}
-                    onClick={() => router.push(`/superadmin/applicants/${job.id}`)}
+                    onClick={() =>
+                      router.push(`/superadmin/applicants/${job.id}`)
+                    }
                     className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100 hover:shadow-2xl hover:scale-105 transition-all cursor-pointer"
                   >
                     <h3 className="text-xl font-bold text-gray-800 mb-2">
@@ -440,7 +465,9 @@ export default function SuperAdminDashboard() {
             </h2>
 
             <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 mb-6">
-              <h3 className="font-bold text-blue-800 mb-2">Original Request:</h3>
+              <h3 className="font-bold text-blue-800 mb-2">
+                Original Request:
+              </h3>
               <p className="text-sm text-blue-700">
                 Company: {selectedRequest.company_name}
               </p>
@@ -487,8 +514,8 @@ export default function SuperAdminDashboard() {
                     disabled={processing}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    💡 Tip: Company offered {selectedRequest.payment_offered}. You can
-                    post it lower to keep the difference as profit.
+                    💡 Tip: Company offered {selectedRequest.payment_offered}.
+                    You can post it lower to keep the difference as profit.
                   </p>
                 </div>
 
@@ -523,7 +550,7 @@ export default function SuperAdminDashboard() {
                 className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-lg disabled:opacity-50"
                 disabled={processing}
               >
-                {processing ? 'Approving...' : 'Approve & Post Job'}
+                {processing ? "Approving..." : "Approve & Post Job"}
               </button>
             </div>
           </div>
@@ -538,7 +565,8 @@ export default function SuperAdminDashboard() {
               Reject Request
             </h2>
             <p className="text-gray-600 mb-4">
-              For: <span className="font-semibold">{selectedRequest.title}</span>
+              For:{" "}
+              <span className="font-semibold">{selectedRequest.title}</span>
             </p>
             <textarea
               placeholder="Reason for rejection..."
@@ -564,7 +592,7 @@ export default function SuperAdminDashboard() {
                 className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg disabled:opacity-50"
                 disabled={processing}
               >
-                {processing ? 'Rejecting...' : 'Reject Request'}
+                {processing ? "Rejecting..." : "Reject Request"}
               </button>
             </div>
           </div>
