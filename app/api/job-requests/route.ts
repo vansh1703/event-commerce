@@ -23,8 +23,10 @@ export async function GET(request: NextRequest) {
       event_type: req.event_type,
       location: req.location,
       helpers_needed: req.helpers_needed,
-      event_date: req.event_date,
-      event_time: req.event_time,
+      event_start_date: req.event_start_date, // ✅ Date range
+      event_end_date: req.event_end_date,     // ✅ Date range
+      event_start_time: req.event_start_time, // ✅ Time range
+      event_end_time: req.event_end_time,     // ✅ Time range
       payment_offered: req.payment_offered,
       description: req.description,
       contact_phone: req.contact_phone,
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
       rejection_reason: req.rejection_reason,
       approved_job_id: req.approved_job_id,
       submitted_at: req.submitted_at,
-      custom_fields: req.custom_fields || {}, // ✅ Include custom fields
+      custom_fields: req.custom_fields || {},
     }));
 
     return NextResponse.json({
@@ -58,18 +60,30 @@ export async function POST(request: NextRequest) {
       eventType,
       location,
       helpersNeeded,
-      date,
-      time,
+      startDate,      // ✅ Date range
+      endDate,        // ✅ Date range
+      startTime,      // ✅ Time range
+      endTime,        // ✅ Time range
       paymentOffered,
       description,
       contactPhone,
-      customFields, // ✅ Receive custom fields
+      customFields,
     } = body;
 
     // Validate required fields
-    if (!companyId || !title || !eventType || !location || !helpersNeeded || !date || !time || !paymentOffered || !description || !contactPhone) {
+    if (!companyId || !title || !eventType || !location || !helpersNeeded || 
+        !startDate || !endDate || !startTime || !endTime || 
+        !paymentOffered || !description || !contactPhone) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validate date range
+    if (new Date(endDate) < new Date(startDate)) {
+      return NextResponse.json(
+        { success: false, error: 'End date cannot be before start date' },
         { status: 400 }
       );
     }
@@ -94,7 +108,7 @@ export async function POST(request: NextRequest) {
       day: 'numeric',
     });
 
-    // ✅ Insert job request WITH custom fields
+    // ✅ Insert job request WITH date ranges
     const { data, error } = await supabaseAdmin
       .from('job_requests')
       .insert({
@@ -104,14 +118,16 @@ export async function POST(request: NextRequest) {
         event_type: eventType,
         location,
         helpers_needed: helpersNeeded,
-        event_date: date,
-        event_time: time,
+        event_start_date: startDate,   // ✅ Date range
+        event_end_date: endDate,       // ✅ Date range
+        event_start_time: startTime,   // ✅ Time range
+        event_end_time: endTime,       // ✅ Time range
         payment_offered: paymentOffered,
         description,
         contact_phone: contactPhone,
         status: 'pending',
         submitted_at: submittedAt,
-        custom_fields: customFields || {}, // ✅ Store custom fields
+        custom_fields: customFields || {},
       })
       .select()
       .single();

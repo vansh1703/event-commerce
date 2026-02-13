@@ -6,6 +6,31 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+// ✅ Helper function to add/subtract days from a date
+function addDays(dateString: string, days: number): Date {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+// ✅ Helper function to check if date ranges overlap (with buffer)
+function dateRangesOverlap(
+  start1: string,
+  end1: string,
+  start2: string,
+  end2: string,
+  bufferDays: number = 1
+): boolean {
+  // Add buffer to both ranges
+  const bufferedStart1 = addDays(start1, -bufferDays);
+  const bufferedEnd1 = addDays(end1, bufferDays);
+  const bufferedStart2 = addDays(start2, -bufferDays);
+  const bufferedEnd2 = addDays(end2, bufferDays);
+
+  // Check if ranges overlap
+  return bufferedStart1 <= bufferedEnd2 && bufferedStart2 <= bufferedEnd1;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -38,7 +63,7 @@ export async function GET(request: NextRequest) {
       availability: app.availability,
       status: app.status,
       applied_at: app.applied_at,
-      custom_data: app.custom_data || {}, // ✅ Include custom data
+      custom_data: app.custom_data || {},
     }));
 
     return NextResponse.json({
@@ -66,7 +91,7 @@ export async function POST(request: NextRequest) {
       city,
       experience,
       availability,
-      customData, // ✅ Receive custom data
+      customData,
     } = body;
 
     // Validate required fields
@@ -77,10 +102,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if job exists and is not archived/completed
+    // ✅ Get job details (including date range)
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
-      .select('archived, completed, helpers_needed')
+      .select('archived, completed, helpers_needed, event_start_date, event_end_date')
       .eq('id', jobId)
       .single();
 
@@ -120,6 +145,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ CHECK FOR DATE CONFLICTS WITH ACCEPTED JOBS
+    // Get all ACCEPTED applications for this seeker
+    const { data: acceptedApplications, error: acceptedError } = await supabaseAdmin
+      .from('applications')
+      .select('job_id')
+      .eq('seeker_id', seekerId)
+      .eq('status', 'accepted');
+
+    if (acceptedError) throw acceptedError;
+
+    if (acceptedApplications && acceptedApplications.length > 0) {
+      // Get job details for all accepted applications
+      const acceptedJobIds = acceptedApplications.map(app => app.job_id);
+      
+      const { data: acceptedJobs, error: acceptedJobsError } = await supabaseAdmin
+        .from('jobs')
+        .select('id, event_start_date, event_end_date, title')
+        .in('id', acceptedJobIds);
+
+      if (acceptedJobsError) throw acceptedJobsError;
+
+      // Check if any accepted job overlaps with this job (with ±1 day buffer)
+      for (const acceptedJob of acceptedJobs || []) {
+        if (dateRangesOverlap(
+          job.event_start_date,
+          job.event_end_date,
+          acceptedJob.event_start_date,
+          acceptedJob.event_end_date,
+          1 // ✅ 1 day buffer
+        )) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: `You already have an accepted job "${acceptedJob.title}" that conflicts with this date range (including buffer days). You cannot apply for overlapping jobs.` 
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Check application limit (2x helpers needed)
     const { data: applications } = await supabaseAdmin
       .from('applications')
@@ -139,7 +205,7 @@ export async function POST(request: NextRequest) {
       day: 'numeric',
     });
 
-    // ✅ Insert application WITH custom data
+    // ✅ Insert application
     const { data, error } = await supabaseAdmin
       .from('applications')
       .insert({
@@ -153,7 +219,7 @@ export async function POST(request: NextRequest) {
         availability,
         status: 'pending',
         applied_at: appliedAt,
-        custom_data: customData || {}, // ✅ Store custom data
+        custom_data: customData || {},
       })
       .select()
       .single();

@@ -25,15 +25,17 @@ export async function GET(request: NextRequest) {
       event_type: job.event_type,
       location: job.location,
       helpers_needed: job.helpers_needed,
-      date: job.date,
-      time: job.time,
+      event_start_date: job.event_start_date,   // ✅ Date range
+      event_end_date: job.event_end_date,       // ✅ Date range
+      event_start_time: job.event_start_time,   // ✅ Time range
+      event_end_time: job.event_end_time,       // ✅ Time range
       payment: job.payment,
       description: job.description,
       contact_phone: job.contact_phone,
       completed: job.completed,
       archived: job.archived,
       created_at: job.created_at,
-      custom_fields: job.custom_fields || {}, // ✅ Include custom fields
+      custom_fields: job.custom_fields || {},
     }));
 
     return NextResponse.json({

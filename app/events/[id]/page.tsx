@@ -22,6 +22,10 @@ type Job = {
   archived: boolean;
   completed: boolean;
   custom_fields: any;
+  event_start_date: string;
+  event_end_date: string;
+  event_start_time: string;
+  event_end_time: string;
 };
 
 export default function JobDetailsPage() {
@@ -45,7 +49,9 @@ export default function JobDetailsPage() {
 
   // ✅ Custom field states
   const [customData, setCustomData] = useState<any>({});
-  const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
+  const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>(
+    {},
+  );
 
   useEffect(() => {
     loadJob();
@@ -89,7 +95,7 @@ export default function JobDetailsPage() {
     try {
       const res = await fetch(
         `/api/applications?jobId=${jobId}&seekerId=${seekerId}`,
-        { method: "GET" }
+        { method: "GET" },
       );
       const data = await res.json();
 
@@ -105,20 +111,20 @@ export default function JobDetailsPage() {
   const handleFileUpload = async (fieldName: string, file: File) => {
     if (!file || !seekerUser) return;
 
-    setUploadingFiles(prev => ({ ...prev, [fieldName]: true }));
+    setUploadingFiles((prev) => ({ ...prev, [fieldName]: true }));
 
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${seekerUser.id}/${fieldName}_${Date.now()}.${fileExt}`;
 
       const { data, error } = await supabase.storage
-        .from('seeker-documents')
+        .from("seeker-documents")
         .upload(fileName, file);
 
       if (error) throw error;
 
       const { data: urlData } = supabase.storage
-        .from('seeker-documents')
+        .from("seeker-documents")
         .getPublicUrl(fileName);
 
       setCustomData((prev: any) => ({
@@ -128,10 +134,10 @@ export default function JobDetailsPage() {
 
       alert(`✅ ${fieldName} uploaded successfully!`);
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       alert(`Failed to upload ${fieldName}: ${error.message}`);
     } finally {
-      setUploadingFiles(prev => ({ ...prev, [fieldName]: false }));
+      setUploadingFiles((prev) => ({ ...prev, [fieldName]: false }));
     }
   };
 
@@ -148,7 +154,7 @@ export default function JobDetailsPage() {
 
     if (!seekerUser) {
       const confirmLogin = window.confirm(
-        "Please login to apply for this job. Click OK to go to login page."
+        "Please login to apply for this job. Click OK to go to login page.",
       );
       if (confirmLogin) {
         router.push("/seeker/login");
@@ -173,11 +179,15 @@ export default function JobDetailsPage() {
 
     // ✅ Validate required custom fields
     if (job?.custom_fields) {
-      const requiredFields = Object.entries(job.custom_fields).filter(([_, required]) => required);
-      
+      const requiredFields = Object.entries(job.custom_fields).filter(
+        ([_, required]) => required,
+      );
+
       for (const [fieldName] of requiredFields) {
         if (!customData[fieldName]) {
-          alert(`Please complete the required field: ${getFieldLabel(fieldName)}`);
+          alert(
+            `Please complete the required field: ${getFieldLabel(fieldName)}`,
+          );
           return;
         }
       }
@@ -236,7 +246,13 @@ export default function JobDetailsPage() {
 
   // ✅ Helper function to determine if field is photo type
   const isPhotoField = (fieldName: string): boolean => {
-    return ['additional_photo', 'additional_id_proof', 'birthmark_photo', 'formal_photo', 'profile_photo'].includes(fieldName);
+    return [
+      "additional_photo",
+      "additional_id_proof",
+      "birthmark_photo",
+      "formal_photo",
+      "profile_photo",
+    ].includes(fieldName);
   };
 
   if (loading) {
@@ -244,7 +260,9 @@ export default function JobDetailsPage() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading job details...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            Loading job details...
+          </p>
         </div>
       </div>
     );
@@ -255,7 +273,9 @@ export default function JobDetailsPage() {
   const canApply = !job.archived && !job.completed && !alreadyApplied;
   const isArchived = job.archived;
   const isCompleted = job.completed;
-  const hasCustomFields = job.custom_fields && Object.values(job.custom_fields).some(v => v === true);
+  const hasCustomFields =
+    job.custom_fields &&
+    Object.values(job.custom_fields).some((v) => v === true);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 md:px-6 py-6 md:py-10">
@@ -272,7 +292,7 @@ export default function JobDetailsPage() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               {job.title}
             </h1>
-            
+
             {isArchived && (
               <span className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-full text-xs font-semibold">
                 📦 ARCHIVED
@@ -300,31 +320,72 @@ export default function JobDetailsPage() {
           <div className="space-y-4 mb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Event Type</p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">{job.event_type}</p>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Location</p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">{job.location}</p>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Date & Time</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Event Type
+                </p>
                 <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.date} at {job.time}
+                  {job.event_type}
                 </p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Helpers Needed</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Location
+                </p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  {job.location}
+                </p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 border-2 border-blue-200 dark:border-blue-700">
+                <p className="text-sm text-blue-600 dark:text-blue-400 mb-1">
+                  📅 Event Dates
+                </p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  {job.event_start_date === job.event_end_date
+                    ? job.event_start_date
+                    : `${job.event_start_date} to ${job.event_end_date}`}
+                </p>
+              </div>
+
+              {/* ✅ TIME RANGE DISPLAY */}
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 border-2 border-purple-200 dark:border-purple-700">
+                <p className="text-sm text-purple-600 dark:text-purple-400 mb-1">
+                  🕐 Event Time
+                </p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  {job.event_start_time === job.event_end_time
+                    ? job.event_start_time
+                    : `${job.event_start_time} - ${job.event_end_time}`}
+                </p>
+              </div>
+
+              {/* <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Date & Time
+                </p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  {job.date} at {job.time}
+                </p>
+              </div> */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Helpers Needed
+                </p>
                 <p className="font-semibold text-gray-800 dark:text-gray-200">
                   {job.helpers_needed}
                 </p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Payment</p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">{job.payment}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Payment
+                </p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  {job.payment}
+                </p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Contact</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Contact
+                </p>
                 <p className="font-semibold text-gray-800 dark:text-gray-200">
                   {job.contact_phone}
                 </p>
@@ -332,8 +393,12 @@ export default function JobDetailsPage() {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Description</p>
-              <p className="text-gray-800 dark:text-gray-200">{job.description}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                Description
+              </p>
+              <p className="text-gray-800 dark:text-gray-200">
+                {job.description}
+              </p>
             </div>
           </div>
 
@@ -440,112 +505,165 @@ export default function JobDetailsPage() {
                     </h3>
 
                     <div className="space-y-4 bg-purple-50 dark:bg-purple-900/20 p-6 rounded-2xl">
-                      {Object.entries(job.custom_fields).map(([fieldName, isRequired]) => {
-                        if (!isRequired) return null;
+                      {Object.entries(job.custom_fields).map(
+                        ([fieldName, isRequired]) => {
+                          if (!isRequired) return null;
 
-                        const label = getFieldLabel(fieldName);
-                        const isPhoto = isPhotoField(fieldName);
+                          const label = getFieldLabel(fieldName);
+                          const isPhoto = isPhotoField(fieldName);
 
-                        return (
-                          <div key={fieldName} className="bg-white dark:bg-gray-700 p-4 rounded-xl">
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                              {label} <span className="text-red-500">*</span>
-                            </label>
+                          return (
+                            <div
+                              key={fieldName}
+                              className="bg-white dark:bg-gray-700 p-4 rounded-xl"
+                            >
+                              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                {label} <span className="text-red-500">*</span>
+                              </label>
 
-                            {isPhoto ? (
-                              <div className="space-y-2">
+                              {isPhoto ? (
+                                <div className="space-y-2">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file)
+                                        handleFileUpload(fieldName, file);
+                                    }}
+                                    disabled={
+                                      applying || uploadingFiles[fieldName]
+                                    }
+                                    className="w-full text-sm text-gray-600 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300"
+                                    required
+                                  />
+                                  {uploadingFiles[fieldName] && (
+                                    <p className="text-sm text-indigo-600 dark:text-indigo-400">
+                                      Uploading...
+                                    </p>
+                                  )}
+                                  {customData[fieldName] && (
+                                    <p className="text-sm text-green-600 dark:text-green-400">
+                                      ✓ Uploaded successfully
+                                    </p>
+                                  )}
+                                </div>
+                              ) : fieldName === "english_fluency" ? (
+                                <div className="space-y-2">
+                                  <label className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={customData[fieldName]?.includes(
+                                        "Reading",
+                                      )}
+                                      onChange={(e) => {
+                                        const current =
+                                          customData[fieldName] || "";
+                                        const values = current
+                                          .split(", ")
+                                          .filter((v: string) => v);
+                                        if (e.target.checked) {
+                                          values.push("Reading");
+                                        } else {
+                                          const index =
+                                            values.indexOf("Reading");
+                                          if (index > -1)
+                                            values.splice(index, 1);
+                                        }
+                                        handleCustomTextInput(
+                                          fieldName,
+                                          values.join(", "),
+                                        );
+                                      }}
+                                      className="w-4 h-4 text-indigo-600 rounded"
+                                    />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                                      Reading
+                                    </span>
+                                  </label>
+                                  <label className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={customData[fieldName]?.includes(
+                                        "Writing",
+                                      )}
+                                      onChange={(e) => {
+                                        const current =
+                                          customData[fieldName] || "";
+                                        const values = current
+                                          .split(", ")
+                                          .filter((v: string) => v);
+                                        if (e.target.checked) {
+                                          values.push("Writing");
+                                        } else {
+                                          const index =
+                                            values.indexOf("Writing");
+                                          if (index > -1)
+                                            values.splice(index, 1);
+                                        }
+                                        handleCustomTextInput(
+                                          fieldName,
+                                          values.join(", "),
+                                        );
+                                      }}
+                                      className="w-4 h-4 text-indigo-600 rounded"
+                                    />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                                      Writing
+                                    </span>
+                                  </label>
+                                  <label className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={customData[fieldName]?.includes(
+                                        "Understanding",
+                                      )}
+                                      onChange={(e) => {
+                                        const current =
+                                          customData[fieldName] || "";
+                                        const values = current
+                                          .split(", ")
+                                          .filter((v: string) => v);
+                                        if (e.target.checked) {
+                                          values.push("Understanding");
+                                        } else {
+                                          const index =
+                                            values.indexOf("Understanding");
+                                          if (index > -1)
+                                            values.splice(index, 1);
+                                        }
+                                        handleCustomTextInput(
+                                          fieldName,
+                                          values.join(", "),
+                                        );
+                                      }}
+                                      className="w-4 h-4 text-indigo-600 rounded"
+                                    />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                                      Understanding
+                                    </span>
+                                  </label>
+                                </div>
+                              ) : (
                                 <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleFileUpload(fieldName, file);
-                                  }}
-                                  disabled={applying || uploadingFiles[fieldName]}
-                                  className="w-full text-sm text-gray-600 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300"
+                                  type="text"
+                                  placeholder={`Enter ${label}`}
+                                  value={customData[fieldName] || ""}
+                                  onChange={(e) =>
+                                    handleCustomTextInput(
+                                      fieldName,
+                                      e.target.value,
+                                    )
+                                  }
+                                  disabled={applying}
+                                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200"
                                   required
                                 />
-                                {uploadingFiles[fieldName] && (
-                                  <p className="text-sm text-indigo-600 dark:text-indigo-400">Uploading...</p>
-                                )}
-                                {customData[fieldName] && (
-                                  <p className="text-sm text-green-600 dark:text-green-400">✓ Uploaded successfully</p>
-                                )}
-                              </div>
-                            ) : fieldName === 'english_fluency' ? (
-                              <div className="space-y-2">
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={customData[fieldName]?.includes('Reading')}
-                                    onChange={(e) => {
-                                      const current = customData[fieldName] || '';
-                                      const values = current.split(', ').filter((v: string) => v);
-                                      if (e.target.checked) {
-                                        values.push('Reading');
-                                      } else {
-                                        const index = values.indexOf('Reading');
-                                        if (index > -1) values.splice(index, 1);
-                                      }
-                                      handleCustomTextInput(fieldName, values.join(', '));
-                                    }}
-                                    className="w-4 h-4 text-indigo-600 rounded"
-                                  />
-                                  <span className="text-sm text-gray-700 dark:text-gray-300">Reading</span>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={customData[fieldName]?.includes('Writing')}
-                                    onChange={(e) => {
-                                      const current = customData[fieldName] || '';
-                                      const values = current.split(', ').filter((v: string) => v);
-                                      if (e.target.checked) {
-                                        values.push('Writing');
-                                      } else {
-                                        const index = values.indexOf('Writing');
-                                        if (index > -1) values.splice(index, 1);
-                                      }
-                                      handleCustomTextInput(fieldName, values.join(', '));
-                                    }}
-                                    className="w-4 h-4 text-indigo-600 rounded"
-                                  />
-                                  <span className="text-sm text-gray-700 dark:text-gray-300">Writing</span>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={customData[fieldName]?.includes('Understanding')}
-                                    onChange={(e) => {
-                                      const current = customData[fieldName] || '';
-                                      const values = current.split(', ').filter((v: string) => v);
-                                      if (e.target.checked) {
-                                        values.push('Understanding');
-                                      } else {
-                                        const index = values.indexOf('Understanding');
-                                        if (index > -1) values.splice(index, 1);
-                                      }
-                                      handleCustomTextInput(fieldName, values.join(', '));
-                                    }}
-                                    className="w-4 h-4 text-indigo-600 rounded"
-                                  />
-                                  <span className="text-sm text-gray-700 dark:text-gray-300">Understanding</span>
-                                </label>
-                              </div>
-                            ) : (
-                              <input
-                                type="text"
-                                placeholder={`Enter ${label}`}
-                                value={customData[fieldName] || ''}
-                                onChange={(e) => handleCustomTextInput(fieldName, e.target.value)}
-                                disabled={applying}
-                                className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200"
-                                required
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
+                              )}
+                            </div>
+                          );
+                        },
+                      )}
                     </div>
                   </div>
                 )}

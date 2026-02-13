@@ -24,6 +24,10 @@ type Job = {
   completed: boolean;
   created_at: string;
   archived: boolean;
+  event_start_date: string;
+  event_end_date: string;
+  event_start_time: string;
+  event_end_time: string;
 };
 
 type Application = {
@@ -474,18 +478,22 @@ export default function SuperAdminApplicantsPage() {
           <div>
             <button
               onClick={() => router.push("/superadmin/dashboard")}
-              className="text-indigo-600 hover:text-purple-600 font-semibold mb-2 flex items-center gap-2"
+              className="text-indigo-600 dark:text-indigo-400 hover:text-purple-600 dark:hover:text-purple-400 font-semibold mb-2 flex items-center gap-2"
             >
               ← Back to Dashboard
             </button>
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               {job.title}
             </h1>
-            <p className="text-gray-600 mt-1">
-              🏢 {job.company_name} • {job.date} • Posted: {job.payment}
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              🏢 {job.company_name} • 📅{" "}
+              {job.event_start_date === job.event_end_date
+                ? job.event_start_date
+                : `${job.event_start_date} to ${job.event_end_date}`}{" "}
+              • 💰 Posted: {job.payment}
             </p>
             {job.archived && (
-              <span className="inline-block mt-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold">
+              <span className="inline-block mt-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-3 py-1 rounded-full text-sm font-semibold">
                 📦 ARCHIVED
               </span>
             )}

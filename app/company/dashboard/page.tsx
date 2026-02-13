@@ -42,6 +42,10 @@ type Job = {
   description: string;
   contact_phone: string;
   completed: boolean;
+  event_start_date: string;
+  event_end_date: string;
+  event_start_time: string;
+  event_end_time: string;
 };
 
 type Application = {
@@ -83,7 +87,6 @@ export default function CompanyDashboard() {
   const [approvedJobs, setApprovedJobs] = useState<Job[]>([]);
   const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  
 
   const [selectedCandidate, setSelectedCandidate] =
     useState<Application | null>(null);
@@ -152,10 +155,12 @@ export default function CompanyDashboard() {
         );
 
         const active = myJobs.filter(
-          (job: Job) => !job.completed && new Date(job.date) >= new Date(),
+          (job: Job) =>
+            !job.completed && new Date(job.event_end_date) >= new Date(),
         );
         const completed = myJobs.filter(
-          (job: Job) => job.completed || new Date(job.date) < new Date(),
+          (job: Job) =>
+            job.completed || new Date(job.event_end_date) < new Date(),
         );
 
         setApprovedJobs(active);
@@ -519,23 +524,25 @@ export default function CompanyDashboard() {
                   >
                     {/* Job Header */}
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                      <div>
-                        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
                           {job.title}
                         </h3>
-                        <p className="text-sm text-gray-600">
-                          {job.event_type} • {job.location} • {job.date} at {job.time}
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {job.event_type} • {job.location} • 📅{" "}
+                          {job.event_start_date === job.event_end_date
+                            ? `${job.event_start_date} at ${job.event_start_time}`
+                            : `${job.event_start_date} to ${job.event_end_date}, ${job.event_start_time} - ${job.event_end_time}`}
                         </p>
-                        {/* <p className="text-sm text-gray-600 mt-1">
-                          💰 Posted Payment: {job.payment}
-                        </p> */}
                       </div>
 
                       {/* ✅ UPDATED BUTTONS */}
                       <div className="flex gap-2 flex-wrap">
                         {/* View Applicants Button */}
                         <button
-                          onClick={() => router.push(`/company/applicants/${job.id}`)}
+                          onClick={() =>
+                            router.push(`/company/applicants/${job.id}`)
+                          }
                           className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
                         >
                           👥 View Applicants

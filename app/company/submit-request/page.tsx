@@ -11,8 +11,13 @@ export default function SubmitRequestPage() {
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState("");
   const [helpersNeeded, setHelpersNeeded] = useState<number>(1);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  
+  // ✅ DATE RANGE FIELDS
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  
   const [location, setLocation] = useState("");
   const [paymentOffered, setPaymentOffered] = useState("");
   const [description, setDescription] = useState("");
@@ -49,12 +54,35 @@ export default function SubmitRequestPage() {
     setCompanyUser(parsedUser);
   }, [router]);
 
+  // ✅ Auto-set end date when start date changes (for single day events)
+  const handleStartDateChange = (date: string) => {
+    setStartDate(date);
+    if (!endDate) {
+      setEndDate(date); // Auto-fill end date same as start
+    }
+  };
+
+  // ✅ Auto-set end time when start time changes
+  const handleStartTimeChange = (time: string) => {
+    setStartTime(time);
+    if (!endTime) {
+      setEndTime(time); // Auto-fill end time same as start
+    }
+  };
+
   const toggleCustomField = (field: keyof typeof customFields) => {
     setCustomFields(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ Validate date range
+    if (new Date(endDate) < new Date(startDate)) {
+      alert("End date cannot be before start date!");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -68,12 +96,14 @@ export default function SubmitRequestPage() {
           eventType,
           location,
           helpersNeeded,
-          date,
-          time,
+          startDate,      // ✅ Send date range
+          endDate,        // ✅ Send date range
+          startTime,      // ✅ Send time range
+          endTime,        // ✅ Send time range
           paymentOffered,
           description,
           contactPhone,
-          customFields, // ✅ Send custom fields
+          customFields,
         }),
       });
 
@@ -151,24 +181,76 @@ export default function SubmitRequestPage() {
               disabled={loading}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                type="date"
-                className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all text-gray-800 dark:text-gray-200"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                disabled={loading}
-              />
+            {/* ✅ DATE RANGE SECTION */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-2xl p-4">
+              <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-3">
+                📅 Event Date & Time Range
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 dark:text-gray-200"
+                    value={startDate}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
 
-              <input
-                type="time"
-                className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all text-gray-800 dark:text-gray-200"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                required
-                disabled={loading}
-              />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    End Date *
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 dark:text-gray-200"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Start Time *
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 dark:text-gray-200"
+                    value={startTime}
+                    onChange={(e) => handleStartTimeChange(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    End Time *
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 dark:text-gray-200"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                💡 For single-day events, start and end dates will be the same
+              </p>
             </div>
 
             <input
@@ -210,7 +292,7 @@ export default function SubmitRequestPage() {
               disabled={loading}
             />
 
-            {/* ✅ CUSTOM FIELDS SECTION */}
+            {/* CUSTOM FIELDS SECTION (keeping same as before) */}
             <div className="border-t-2 border-gray-200 dark:border-gray-600 pt-6">
               <button
                 type="button"

@@ -36,7 +36,7 @@ export async function POST(
       );
     }
 
-    // ✅ Create job WITH custom fields from request
+    // ✅ Create job WITH date ranges and custom fields
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
       .insert({
@@ -48,14 +48,16 @@ export async function POST(
         event_type: requestData.event_type,
         location: requestData.location,
         helpers_needed: requestData.helpers_needed,
-        date: requestData.event_date,
-        time: requestData.event_time,
+        event_start_date: jobRequest.event_start_date,   // ✅ Date range
+        event_end_date: jobRequest.event_end_date,       // ✅ Date range
+        event_start_time: jobRequest.event_start_time,   // ✅ Time range
+        event_end_time: jobRequest.event_end_time,       // ✅ Time range
         payment: finalPayment,
         description: finalDescription,
         contact_phone: requestData.contact_phone,
         completed: false,
         archived: false,
-        custom_fields: jobRequest.custom_fields || {}, // ✅ Pass custom fields to job
+        custom_fields: jobRequest.custom_fields || {},
       })
       .select()
       .single();

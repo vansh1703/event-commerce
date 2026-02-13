@@ -19,6 +19,10 @@ type JobRequest = {
   status: "pending" | "approved" | "rejected";
   submitted_at: string;
   rejection_reason?: string;
+  event_start_date: string;
+  event_end_date: string;
+  event_start_time: string;
+  event_end_time: string;
 };
 
 const ITEMS_PER_PAGE = 10;
@@ -41,17 +45,19 @@ export default function AllRequestsPage() {
 
   const loadRequests = async () => {
     try {
-      const data = await apiCall('/job-requests', { method: 'GET' });
-      
+      const data = await apiCall("/job-requests", { method: "GET" });
+
       if (data.success) {
         // Sort by submitted date (newest first)
-        const sorted = data.jobRequests.sort((a: JobRequest, b: JobRequest) => 
-          new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+        const sorted = data.jobRequests.sort(
+          (a: JobRequest, b: JobRequest) =>
+            new Date(b.submitted_at).getTime() -
+            new Date(a.submitted_at).getTime(),
         );
         setAllRequests(sorted);
       }
     } catch (error) {
-      console.error('Error loading requests:', error);
+      console.error("Error loading requests:", error);
     } finally {
       setLoading(false);
     }
@@ -61,7 +67,9 @@ export default function AllRequestsPage() {
     if (statusFilter === "all") {
       setFilteredRequests(allRequests);
     } else {
-      setFilteredRequests(allRequests.filter(req => req.status === statusFilter));
+      setFilteredRequests(
+        allRequests.filter((req) => req.status === statusFilter),
+      );
     }
     setCurrentPage(1); // Reset to first page when filter changes
   };
@@ -146,7 +154,8 @@ export default function AllRequestsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Pending ({allRequests.filter(r => r.status === "pending").length})
+              Pending (
+              {allRequests.filter((r) => r.status === "pending").length})
             </button>
             <button
               onClick={() => setStatusFilter("approved")}
@@ -156,7 +165,8 @@ export default function AllRequestsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Approved ({allRequests.filter(r => r.status === "approved").length})
+              Approved (
+              {allRequests.filter((r) => r.status === "approved").length})
             </button>
             <button
               onClick={() => setStatusFilter("rejected")}
@@ -166,7 +176,8 @@ export default function AllRequestsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Rejected ({allRequests.filter(r => r.status === "rejected").length})
+              Rejected (
+              {allRequests.filter((r) => r.status === "rejected").length})
             </button>
           </div>
         </div>
@@ -189,14 +200,22 @@ export default function AllRequestsPage() {
                       <h3 className="text-xl font-bold text-gray-800">
                         {request.title}
                       </h3>
-                      <span className={`${getStatusBadge(request.status)} px-3 py-1 rounded-full text-xs font-semibold`}>
-                        {getStatusIcon(request.status)} {request.status.toUpperCase()}
+                      <span
+                        className={`${getStatusBadge(request.status)} px-3 py-1 rounded-full text-xs font-semibold`}
+                      >
+                        {getStatusIcon(request.status)}{" "}
+                        {request.status.toUpperCase()}
                       </span>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
                       <p>🏢 Company: {request.company_name}</p>
-                      <p>📅 Date: {request.event_date}</p>
+                      <p>
+                        📅 Date:{" "}
+                        {request.event_start_date === request.event_end_date
+                          ? request.event_start_date
+                          : `${request.event_start_date} to ${request.event_end_date}`}
+                      </p>
                       <p>📍 Location: {request.location}</p>
                       <p>👥 Helpers: {request.helpers_needed}</p>
                       <p>💰 Payment Offered: {request.payment_offered}</p>
@@ -205,8 +224,12 @@ export default function AllRequestsPage() {
 
                     {request.rejection_reason && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
-                        <p className="text-sm font-semibold text-red-800">Rejection Reason:</p>
-                        <p className="text-sm text-red-600">{request.rejection_reason}</p>
+                        <p className="text-sm font-semibold text-red-800">
+                          Rejection Reason:
+                        </p>
+                        <p className="text-sm text-red-600">
+                          {request.rejection_reason}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -220,31 +243,35 @@ export default function AllRequestsPage() {
         {totalPages > 1 && (
           <div className="mt-8 flex justify-center items-center gap-2">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
               className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               ← Previous
             </button>
-            
+
             <div className="flex gap-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-10 h-10 rounded-xl font-semibold transition-all ${
-                    currentPage === page
-                      ? "bg-indigo-600 text-white"
-                      : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-xl font-semibold transition-all ${
+                      currentPage === page
+                        ? "bg-indigo-600 text-white"
+                        : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
             </div>
 
             <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
               disabled={currentPage === totalPages}
               className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
