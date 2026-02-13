@@ -12,7 +12,10 @@ type Job = {
   location: string;
   helpers_needed: number;
   payment: string;
-  date: string;
+  event_start_date: string;  // ✅ Changed
+  event_end_date: string;    // ✅ Changed
+  event_start_time: string;  // ✅ New
+  event_end_time: string;    // ✅ New
   completed: boolean;
   archived: boolean;
 };
@@ -45,14 +48,14 @@ export default function EventsPage() {
           // Filter out completed jobs
           if (job.completed) return false;
 
-          // ✅ Filter out archived jobs
+          // Filter out archived jobs
           if (job.archived) return false;
 
-          // Filter out past events
-          const eventDate = new Date(job.date);
+          // ✅ Filter out past events (check end date)
+          const eventEndDate = new Date(job.event_end_date);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          return eventDate >= today;
+          return eventEndDate >= today;
         });
 
         setJobs(activeJobs);
@@ -66,25 +69,22 @@ export default function EventsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading jobs...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading jobs...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
+    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 md:px-6 py-6 md:py-10">
       <div className="max-w-5xl mx-auto">
         {seekerUser ? (
           <SeekerNavbar />
         ) : (
           <div className="flex justify-between items-center mb-10">
-            {/* <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Available Event Jobs
-            </h1> */}
             <div className="flex gap-2 md:gap-3">
               <button
                 onClick={() => router.push("/seeker/login")}
@@ -136,9 +136,13 @@ export default function EventsPage() {
                     {job.location}
                   </p>
 
+                  {/* ✅ DATE RANGE DISPLAY */}
                   <p className="text-gray-600 flex items-center gap-2">
                     <span className="text-indigo-600">📅</span>
-                    <span className="font-medium">Date:</span> {job.date}
+                    <span className="font-medium">Date:</span>{" "}
+                    {job.event_start_date === job.event_end_date 
+                      ? job.event_start_date 
+                      : `${job.event_start_date} to ${job.event_end_date}`}
                   </p>
 
                   <p className="text-gray-600 flex items-center gap-2">

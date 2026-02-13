@@ -24,6 +24,10 @@ type Job = {
   completed: boolean;
   created_at: string;
   archived: boolean;
+  event_start_date: string;
+  event_end_date: string;
+  event_start_time: string;
+  event_end_time: string;
 };
 
 type Application = {
@@ -38,6 +42,7 @@ type Application = {
   availability: string;
   applied_at: string;
   status: "pending" | "accepted" | "rejected";
+  custom_data?: any;
 };
 
 type SeekerStats = {
@@ -473,18 +478,22 @@ export default function SuperAdminApplicantsPage() {
           <div>
             <button
               onClick={() => router.push("/superadmin/dashboard")}
-              className="text-indigo-600 hover:text-purple-600 font-semibold mb-2 flex items-center gap-2"
+              className="text-indigo-600 dark:text-indigo-400 hover:text-purple-600 dark:hover:text-purple-400 font-semibold mb-2 flex items-center gap-2"
             >
               ← Back to Dashboard
             </button>
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               {job.title}
             </h1>
-            <p className="text-gray-600 mt-1">
-              🏢 {job.company_name} • {job.date} • Posted: {job.payment}
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              🏢 {job.company_name} • 📅{" "}
+              {job.event_start_date === job.event_end_date
+                ? job.event_start_date
+                : `${job.event_start_date} to ${job.event_end_date}`}{" "}
+              • 💰 Posted: {job.payment}
             </p>
             {job.archived && (
-              <span className="inline-block mt-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold">
+              <span className="inline-block mt-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-3 py-1 rounded-full text-sm font-semibold">
                 📦 ARCHIVED
               </span>
             )}
@@ -796,6 +805,172 @@ export default function SuperAdminApplicantsPage() {
               Applied on:{" "}
               {new Date(selectedApplicant.applied_at).toLocaleDateString()}
             </p>
+
+            {/* ✅ DISPLAY CUSTOM DATA */}
+            {selectedApplicant.custom_data &&
+              Object.keys(selectedApplicant.custom_data).length > 0 && (
+                <div className="mb-6 border-t-2 border-gray-200 dark:border-gray-700 pt-6">
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                    <span className="text-purple-600">📋</span>
+                    Additional Information
+                  </h3>
+
+                  <div className="space-y-4">
+                    {/* Additional Photo */}
+                    {selectedApplicant.custom_data.additional_photo && (
+                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 border-2 border-purple-200 dark:border-purple-700">
+                        <h4 className="font-bold text-purple-800 dark:text-purple-300 mb-2 flex items-center gap-2">
+                          📸 Additional Photo
+                        </h4>
+                        <img
+                          src={selectedApplicant.custom_data.additional_photo}
+                          alt="Additional"
+                          onClick={() => {
+                            setSelectedPhoto(
+                              selectedApplicant.custom_data.additional_photo,
+                            );
+                            setShowPhotoModal(true);
+                          }}
+                          className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-purple-300 dark:border-purple-600"
+                        />
+                        <p className="text-purple-600 dark:text-purple-400 text-sm font-semibold mt-2">
+                          🔍 Click to enlarge
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Additional ID Proof */}
+                    {selectedApplicant.custom_data.additional_id_proof && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 border-2 border-blue-200 dark:border-blue-700">
+                        <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+                          🆔 Additional ID Proof
+                        </h4>
+                        <img
+                          src={
+                            selectedApplicant.custom_data.additional_id_proof
+                          }
+                          alt="Additional ID"
+                          onClick={() => {
+                            setSelectedPhoto(
+                              selectedApplicant.custom_data.additional_id_proof,
+                            );
+                            setShowPhotoModal(true);
+                          }}
+                          className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-blue-300 dark:border-blue-600"
+                        />
+                        <p className="text-blue-600 dark:text-blue-400 text-sm font-semibold mt-2">
+                          🔍 Click to enlarge
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Birthmark Photo */}
+                    {selectedApplicant.custom_data.birthmark_photo && (
+                      <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4 border-2 border-orange-200 dark:border-orange-700">
+                        <h4 className="font-bold text-orange-800 dark:text-orange-300 mb-2 flex items-center gap-2">
+                          ⚫ Birthmark/Mole Photo
+                        </h4>
+                        <img
+                          src={selectedApplicant.custom_data.birthmark_photo}
+                          alt="Birthmark"
+                          onClick={() => {
+                            setSelectedPhoto(
+                              selectedApplicant.custom_data.birthmark_photo,
+                            );
+                            setShowPhotoModal(true);
+                          }}
+                          className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-orange-300 dark:border-orange-600"
+                        />
+                        <p className="text-orange-600 dark:text-orange-400 text-sm font-semibold mt-2">
+                          🔍 Click to enlarge
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Formal Photo */}
+                    {selectedApplicant.custom_data.formal_photo && (
+                      <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl p-4 border-2 border-indigo-200 dark:border-indigo-700">
+                        <h4 className="font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2">
+                          👔 Photo in Formals
+                        </h4>
+                        <img
+                          src={selectedApplicant.custom_data.formal_photo}
+                          alt="Formal"
+                          onClick={() => {
+                            setSelectedPhoto(
+                              selectedApplicant.custom_data.formal_photo,
+                            );
+                            setShowPhotoModal(true);
+                          }}
+                          className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-indigo-300 dark:border-indigo-600"
+                        />
+                        <p className="text-indigo-600 dark:text-indigo-400 text-sm font-semibold mt-2">
+                          🔍 Click to enlarge
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Profile Photo */}
+                    {selectedApplicant.custom_data.profile_photo && (
+                      <div className="bg-pink-50 dark:bg-pink-900/20 rounded-2xl p-4 border-2 border-pink-200 dark:border-pink-700">
+                        <h4 className="font-bold text-pink-800 dark:text-pink-300 mb-2 flex items-center gap-2">
+                          📷 Left/Right Face Profile
+                        </h4>
+                        <img
+                          src={selectedApplicant.custom_data.profile_photo}
+                          alt="Profile"
+                          onClick={() => {
+                            setSelectedPhoto(
+                              selectedApplicant.custom_data.profile_photo,
+                            );
+                            setShowPhotoModal(true);
+                          }}
+                          className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-pink-300 dark:border-pink-600"
+                        />
+                        <p className="text-pink-600 dark:text-pink-400 text-sm font-semibold mt-2">
+                          🔍 Click to enlarge
+                        </p>
+                      </div>
+                    )}
+
+                    {/* College Name */}
+                    {selectedApplicant.custom_data.college_name && (
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl p-4 border-2 border-green-200 dark:border-green-700">
+                        <h4 className="font-bold text-green-800 dark:text-green-300 mb-1 flex items-center gap-2">
+                          🎓 College Name
+                        </h4>
+                        <p className="text-green-700 dark:text-green-400 text-lg">
+                          {selectedApplicant.custom_data.college_name}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Highest Qualification */}
+                    {selectedApplicant.custom_data.highest_qualification && (
+                      <div className="bg-teal-50 dark:bg-teal-900/20 rounded-2xl p-4 border-2 border-teal-200 dark:border-teal-700">
+                        <h4 className="font-bold text-teal-800 dark:text-teal-300 mb-1 flex items-center gap-2">
+                          📚 Highest Qualification
+                        </h4>
+                        <p className="text-teal-700 dark:text-teal-400 text-lg">
+                          {selectedApplicant.custom_data.highest_qualification}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* English Fluency */}
+                    {selectedApplicant.custom_data.english_fluency && (
+                      <div className="bg-cyan-50 dark:bg-cyan-900/20 rounded-2xl p-4 border-2 border-cyan-200 dark:border-cyan-700">
+                        <h4 className="font-bold text-cyan-800 dark:text-cyan-300 mb-1 flex items-center gap-2">
+                          🗣️ English Fluency
+                        </h4>
+                        <p className="text-cyan-700 dark:text-cyan-400 text-lg">
+                          {selectedApplicant.custom_data.english_fluency}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-3">

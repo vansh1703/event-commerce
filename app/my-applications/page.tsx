@@ -22,8 +22,10 @@ type Job = {
   title: string;
   event_type: string;
   location: string;
-  date: string;
-  time: string;
+  event_start_date: string;  // ✅ Changed
+  event_end_date: string;    // ✅ Changed
+  event_start_time: string;  // ✅ Changed
+  event_end_time: string;    // ✅ Changed
   payment: string;
   completed: boolean;
 };
@@ -115,10 +117,10 @@ export default function MyApplicationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading applications...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading applications...</p>
         </div>
       </div>
     );
@@ -128,14 +130,15 @@ export default function MyApplicationsPage() {
     const job = getJobDetails(app.job_id);
     if (!job) return false;
     if (job.completed) return false;
-    const eventDate = new Date(job.date);
+    // ✅ Changed: Use event_end_date instead of date
+    const eventDate = new Date(job.event_end_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return eventDate >= today;
   });
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
+    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 md:px-6 py-6 md:py-10">
       <div className="max-w-5xl mx-auto">
         <SeekerNavbar />
 
@@ -144,8 +147,8 @@ export default function MyApplicationsPage() {
         </h1>
 
         {activeApplications.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-            <p className="text-gray-500 mb-4">No active applications yet.</p>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg p-8 text-center border border-gray-100 dark:border-gray-700">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">No active applications yet.</p>
             <button
               onClick={() => router.push("/events")}
               className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
@@ -162,7 +165,7 @@ export default function MyApplicationsPage() {
               return (
                 <div
                   key={app.id}
-                  className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100"
+                  className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border border-gray-100 dark:border-gray-700"
                 >
                   {/* ✅ UPDATED: Make job title clickable */}
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
@@ -170,17 +173,29 @@ export default function MyApplicationsPage() {
                       className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => router.push(`/events/${job.id}`)}
                     >
-                      <h2 className="text-2xl font-bold text-gray-800 mb-2 hover:text-indigo-600 transition-colors">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                         {job.title} →
                       </h2>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
                         {job.event_type} • {job.location}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        📅 {job.date} at {job.time}
+                      
+                      {/* ✅ DATE RANGE DISPLAY */}
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        📅 {job.event_start_date === job.event_end_date 
+                          ? job.event_start_date 
+                          : `${job.event_start_date} to ${job.event_end_date}`}
                       </p>
-                      <p className="text-sm text-gray-600">💰 {job.payment}</p>
-                      <p className="text-xs text-indigo-600 mt-1 font-semibold">
+                      
+                      {/* ✅ TIME RANGE DISPLAY */}
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        🕐 {job.event_start_time === job.event_end_time 
+                          ? job.event_start_time 
+                          : `${job.event_start_time} - ${job.event_end_time}`}
+                      </p>
+                      
+                      <p className="text-sm text-gray-600 dark:text-gray-300">💰 {job.payment}</p>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 font-semibold">
                         Click to view job details
                       </p>
                     </div>
@@ -196,8 +211,8 @@ export default function MyApplicationsPage() {
                     </span>
                   </div>
 
-                  <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                    <p className="text-sm text-gray-600">
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4 mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       <span className="font-semibold">Applied on:</span>{" "}
                       {new Date(app.applied_at).toLocaleDateString()}
                     </p>
