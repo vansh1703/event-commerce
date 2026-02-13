@@ -1,7 +1,54 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function POST(request: Request) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+export async function GET(request: NextRequest) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('job_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const formattedRequests = data.map((req: any) => ({
+      id: req.id,
+      company_id: req.company_id,
+      company_name: req.company_name,
+      title: req.title,
+      event_type: req.event_type,
+      location: req.location,
+      helpers_needed: req.helpers_needed,
+      event_date: req.event_date,
+      event_time: req.event_time,
+      payment_offered: req.payment_offered,
+      description: req.description,
+      contact_phone: req.contact_phone,
+      status: req.status,
+      rejection_reason: req.rejection_reason,
+      approved_job_id: req.approved_job_id,
+      submitted_at: req.submitted_at,
+      custom_fields: req.custom_fields || {}, // ✅ Include custom fields
+    }));
+
+    return NextResponse.json({
+      success: true,
+      jobRequests: formattedRequests,
+    });
+  } catch (error: any) {
+    console.error('Error fetching job requests:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -16,14 +63,43 @@ export async function POST(request: Request) {
       paymentOffered,
       description,
       contactPhone,
+      customFields, // ✅ Receive custom fields
     } = body;
 
-    const { data: jobRequest, error } = await supabaseAdmin
+    // Validate required fields
+    if (!companyId || !title || !eventType || !location || !helpersNeeded || !date || !time || !paymentOffered || !description || !contactPhone) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Get company email
+    const { data: companyData, error: companyError } = await supabaseAdmin
+      .from('users')
+      .select('email')
+      .eq('id', companyId)
+      .single();
+
+    if (companyError || !companyData) {
+      return NextResponse.json(
+        { success: false, error: 'Company not found' },
+        { status: 404 }
+      );
+    }
+
+    const submittedAt = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    // ✅ Insert job request WITH custom fields
+    const { data, error } = await supabaseAdmin
       .from('job_requests')
       .insert({
         company_id: companyId,
         company_name: companyName,
-        // Remove company_email - column doesn't exist!
         title,
         event_type: eventType,
         location,
@@ -34,36 +110,23 @@ export async function POST(request: Request) {
         description,
         contact_phone: contactPhone,
         status: 'pending',
-        submitted_at: new Date().toISOString(),
+        submitted_at: submittedAt,
+        custom_fields: customFields || {}, // ✅ Store custom fields
       })
       .select()
       .single();
 
-    if (error) {
-      console.error('❌ Insert error:', error);
-      throw error;
-    }
-
-    console.log('✅ Job request created:', jobRequest);
-
-    return NextResponse.json({ success: true, jobRequest });
-  } catch (error: any) {
-    console.error('💥 Job request error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const { data: jobRequests, error } = await supabaseAdmin
-      .from('job_requests')
-      .select('*')
-      .order('submitted_at', { ascending: false });
-
     if (error) throw error;
 
-    return NextResponse.json({ success: true, jobRequests });
+    return NextResponse.json({
+      success: true,
+      jobRequest: data,
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error creating job request:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }

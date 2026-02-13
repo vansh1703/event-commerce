@@ -1,25 +1,48 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const { finalTitle, finalPayment, finalDescription, postedBy, requestData } = await request.json();
+    const { id: requestId } = await context.params;
+    const body = await request.json();
+    const { finalTitle, finalPayment, finalDescription, postedBy, requestData } = body;
 
-    console.log('Approving request:', params.id);
-    console.log('Request data:', requestData);
+    if (!finalTitle || !finalPayment) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
 
-    // Create job
+    // Get the job request to access custom_fields
+    const { data: jobRequest, error: fetchError } = await supabaseAdmin
+      .from('job_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (fetchError || !jobRequest) {
+      return NextResponse.json(
+        { success: false, error: 'Job request not found' },
+        { status: 404 }
+      );
+    }
+
+    // ✅ Create job WITH custom fields from request
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
       .insert({
-        request_id: params.id,
+        request_id: requestId,
         company_id: requestData.company_id,
         company_name: requestData.company_name,
-        company_email: requestData.company_email,
         created_by: postedBy,
         title: finalTitle,
         event_type: requestData.event_type,
@@ -31,36 +54,34 @@ export async function POST(
         description: finalDescription,
         contact_phone: requestData.contact_phone,
         completed: false,
+        archived: false,
+        custom_fields: jobRequest.custom_fields || {}, // ✅ Pass custom fields to job
       })
       .select()
       .single();
 
-    if (jobError) {
-      console.error('Job creation error:', jobError);
-      throw jobError;
-    }
+    if (jobError) throw jobError;
 
-    console.log('Job created:', job);
-
-    // Update request status
+    // Update job request status
     const { error: updateError } = await supabaseAdmin
       .from('job_requests')
       .update({
         status: 'approved',
         approved_job_id: job.id,
       })
-      .eq('id', params.id);
+      .eq('id', requestId);
 
-    if (updateError) {
-      console.error('Update request error:', updateError);
-      throw updateError;
-    }
+    if (updateError) throw updateError;
 
-    console.log('Request updated to approved');
-
-    return NextResponse.json({ success: true, job });
+    return NextResponse.json({
+      success: true,
+      job,
+    });
   } catch (error: any) {
-    console.error('Approve error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error approving job request:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
