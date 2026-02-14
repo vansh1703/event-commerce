@@ -11,17 +11,18 @@ export default function SubmitRequestPage() {
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState("");
   const [helpersNeeded, setHelpersNeeded] = useState<number>(1);
-  
+
   // ✅ DATE RANGE FIELDS
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  
+
   const [location, setLocation] = useState("");
   const [paymentOffered, setPaymentOffered] = useState("");
   const [description, setDescription] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [otherEventType, setOtherEventType] = useState("");
 
   // Custom fields state
   const [showCustomFields, setShowCustomFields] = useState(false);
@@ -71,11 +72,17 @@ export default function SubmitRequestPage() {
   };
 
   const toggleCustomField = (field: keyof typeof customFields) => {
-    setCustomFields(prev => ({ ...prev, [field]: !prev[field] }));
+    setCustomFields((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ Validate "Other" event type
+    if (eventType === "Other" && !otherEventType.trim()) {
+      alert("Please describe the event type!");
+      return;
+    }
 
     // ✅ Validate date range
     if (new Date(endDate) < new Date(startDate)) {
@@ -86,20 +93,21 @@ export default function SubmitRequestPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/job-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/job-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId: companyUser.id,
           companyName: companyUser.company_name,
           title,
-          eventType,
+          eventType:
+            eventType === "Other" ? `Other: ${otherEventType}` : eventType, // ✅ COMBINE
           location,
           helpersNeeded,
-          startDate,      // ✅ Send date range
-          endDate,        // ✅ Send date range
-          startTime,      // ✅ Send time range
-          endTime,        // ✅ Send time range
+          startDate,
+          endDate,
+          startTime,
+          endTime,
           paymentOffered,
           description,
           contactPhone,
@@ -110,16 +118,18 @@ export default function SubmitRequestPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit request');
+        throw new Error(data.error || "Failed to submit request");
       }
 
       if (data.success) {
-        alert("✅ Job request submitted successfully! Waiting for admin approval.");
+        alert(
+          "✅ Job request submitted successfully! Waiting for admin approval.",
+        );
         router.push("/company/dashboard");
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to submit request');
-      console.error('Submit error:', error);
+      alert(error.message || "Failed to submit request");
+      console.error("Submit error:", error);
     } finally {
       setLoading(false);
     }
@@ -154,21 +164,49 @@ export default function SubmitRequestPage() {
               disabled={loading}
             />
 
-            <select
-              className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all text-gray-800 dark:text-gray-200"
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
-              required
-              disabled={loading}
-            >
-              <option value="">Select Event Type</option>
-              <option value="Wedding">Wedding</option>
-              <option value="Birthday">Birthday</option>
-              <option value="Party">Party</option>
-              <option value="Corporate">Corporate Event</option>
-              <option value="Conference">Conference</option>
-              <option value="Other">Other</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Event Type *
+              </label>
+              <select
+                className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200"
+                value={eventType}
+                onChange={(e) => {
+                  setEventType(e.target.value);
+                  if (e.target.value !== "Other") {
+                    setOtherEventType(""); // Reset if not Other
+                  }
+                }}
+                required
+                disabled={loading}
+              >
+                <option value="">Select Event Type</option>
+                <option value="Wedding">Wedding</option>
+                <option value="Birthday">Birthday</option>
+                <option value="Party">Party</option>
+                <option value="Corporate">Corporate Event</option>
+                <option value="Conference">Conference</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* ✅ SHOW THIS INPUT WHEN "OTHER" IS SELECTED */}
+            {eventType === "Other" && (
+              <div className="bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-200 dark:border-orange-700 rounded-2xl p-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Please describe the event type *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Product Launch, Festival, Charity Event"
+                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 text-gray-800 dark:text-gray-200"
+                  value={otherEventType}
+                  onChange={(e) => setOtherEventType(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+            )}
 
             <input
               type="number"
@@ -186,7 +224,7 @@ export default function SubmitRequestPage() {
               <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-3">
                 📅 Event Date & Time Range
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -299,7 +337,8 @@ export default function SubmitRequestPage() {
                 onClick={() => setShowCustomFields(!showCustomFields)}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg flex items-center justify-center gap-2"
               >
-                {showCustomFields ? '➖' : '➕'} Add Additional Fields for Job Seekers
+                {showCustomFields ? "➖" : "➕"} Add Additional Fields for Job
+                Seekers
               </button>
 
               {showCustomFields && (
@@ -312,80 +351,98 @@ export default function SubmitRequestPage() {
                     <input
                       type="checkbox"
                       checked={customFields.additional_photo}
-                      onChange={() => toggleCustomField('additional_photo')}
+                      onChange={() => toggleCustomField("additional_photo")}
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">📸 Additional Photo (Full Body/Other Angle)</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      📸 Additional Photo (Full Body/Other Angle)
+                    </span>
                   </label>
 
                   <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-purple-100 dark:hover:bg-gray-600 transition-all">
                     <input
                       type="checkbox"
                       checked={customFields.additional_id_proof}
-                      onChange={() => toggleCustomField('additional_id_proof')}
+                      onChange={() => toggleCustomField("additional_id_proof")}
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">🆔 Additional ID Proof</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      🆔 Additional ID Proof
+                    </span>
                   </label>
 
                   <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-purple-100 dark:hover:bg-gray-600 transition-all">
                     <input
                       type="checkbox"
                       checked={customFields.birthmark_photo}
-                      onChange={() => toggleCustomField('birthmark_photo')}
+                      onChange={() => toggleCustomField("birthmark_photo")}
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">⚫ Birthmark/Mole Photo (Field Verification)</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      ⚫ Birthmark/Mole Photo (Field Verification)
+                    </span>
                   </label>
 
                   <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-purple-100 dark:hover:bg-gray-600 transition-all">
                     <input
                       type="checkbox"
                       checked={customFields.college_name}
-                      onChange={() => toggleCustomField('college_name')}
+                      onChange={() => toggleCustomField("college_name")}
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">🎓 College Name</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      🎓 College Name
+                    </span>
                   </label>
 
                   <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-purple-100 dark:hover:bg-gray-600 transition-all">
                     <input
                       type="checkbox"
                       checked={customFields.highest_qualification}
-                      onChange={() => toggleCustomField('highest_qualification')}
+                      onChange={() =>
+                        toggleCustomField("highest_qualification")
+                      }
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">📚 Highest Qualification & Domain</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      📚 Highest Qualification & Domain
+                    </span>
                   </label>
 
                   <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-purple-100 dark:hover:bg-gray-600 transition-all">
                     <input
                       type="checkbox"
                       checked={customFields.english_fluency}
-                      onChange={() => toggleCustomField('english_fluency')}
+                      onChange={() => toggleCustomField("english_fluency")}
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">🗣️ English Fluency (Reading, Writing, Understanding)</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      🗣️ English Fluency (Reading, Writing, Understanding)
+                    </span>
                   </label>
 
                   <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-purple-100 dark:hover:bg-gray-600 transition-all">
                     <input
                       type="checkbox"
                       checked={customFields.formal_photo}
-                      onChange={() => toggleCustomField('formal_photo')}
+                      onChange={() => toggleCustomField("formal_photo")}
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">👔 Photo in Formals</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      👔 Photo in Formals
+                    </span>
                   </label>
 
                   <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-purple-100 dark:hover:bg-gray-600 transition-all">
                     <input
                       type="checkbox"
                       checked={customFields.profile_photo}
-                      onChange={() => toggleCustomField('profile_photo')}
+                      onChange={() => toggleCustomField("profile_photo")}
                       className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-400"
                     />
-                    <span className="text-gray-800 dark:text-gray-200">📷 Left/Right Face Profile Photo</span>
+                    <span className="text-gray-800 dark:text-gray-200">
+                      📷 Left/Right Face Profile Photo
+                    </span>
                   </label>
                 </div>
               )}
@@ -395,7 +452,7 @@ export default function SubmitRequestPage() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
             >
-              {loading ? 'Submitting...' : 'Submit Request for Approval'}
+              {loading ? "Submitting..." : "Submit Request for Approval"}
             </button>
           </form>
         </div>

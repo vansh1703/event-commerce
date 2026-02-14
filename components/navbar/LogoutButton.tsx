@@ -8,7 +8,7 @@ export default function LogoutButton() {
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
     alert("Logged out successfully!");
-    router.push("/auth/login");
+    router.push("/");
   };
 
   return (

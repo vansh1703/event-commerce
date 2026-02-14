@@ -106,7 +106,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-sm text-center mt-6 text-gray-600">
+        {/* <p className="text-sm text-center mt-6 text-gray-600">
           Don't have an account?{" "}
           <span
             className="text-indigo-600 cursor-pointer font-semibold hover:text-purple-600 transition-colors"
@@ -114,7 +114,7 @@ export default function LoginPage() {
           >
             Sign Up
           </span>
-        </p>
+        </p> */}
 
         {/* <div className="mt-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
           <p className="text-xs text-indigo-700 text-center">

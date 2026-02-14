@@ -248,8 +248,9 @@ export default function SuperAdminDashboard() {
       {/* Header */}
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
         <div>
+          <span>👑</span>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
-            👑 SuperAdmin Dashboard
+             <span>SuperAdmin Dashboard</span>
           </h1>
           <p className="text-gray-600 mt-2">
             Full platform control & management
@@ -257,6 +258,12 @@ export default function SuperAdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/superadmin/create-company")}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg"
+          >
+            + Create Company
+          </button>
           <button
             onClick={() => router.push("/superadmin/all-requests")}
             className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg"

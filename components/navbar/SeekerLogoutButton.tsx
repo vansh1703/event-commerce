@@ -8,7 +8,7 @@ export default function SeekerLogoutButton() {
   const handleLogout = () => {
     localStorage.removeItem("seekerUser");
     alert("Logged out successfully!");
-    router.push("/seeker/login");
+    router.push("/");
   };
 
   return (
