@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import LogoutButton from "@/components/navbar/LogoutButton";
 import { apiCall } from "@/lib/api";
 import * as XLSX from "xlsx";
+import CompanyFooter from "@/components/CompanyFooter";
 
 type JobRequest = {
   id: string;
@@ -78,6 +79,8 @@ type SeekerStats = {
   bannedUntil: string | null;
 };
 
+const ACTIVE_JOBS_PER_PAGE = 5;
+
 export default function CompanyDashboard() {
   const router = useRouter();
   const [showPhotoModal, setShowPhotoModal] = useState(false);
@@ -98,7 +101,7 @@ export default function CompanyDashboard() {
     null,
   );
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-
+  const [activeJobsPage, setActiveJobsPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -271,6 +274,16 @@ export default function CompanyDashboard() {
       .slice(0, 2);
   };
 
+  const totalActiveJobsPages = Math.ceil(
+    approvedJobs.length / ACTIVE_JOBS_PER_PAGE,
+  );
+  const activeJobsStartIndex = (activeJobsPage - 1) * ACTIVE_JOBS_PER_PAGE;
+  const activeJobsEndIndex = activeJobsStartIndex + ACTIVE_JOBS_PER_PAGE;
+  const currentActiveJobs = approvedJobs.slice(
+    activeJobsStartIndex,
+    activeJobsEndIndex,
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
@@ -331,7 +344,10 @@ export default function CompanyDashboard() {
           </p>
           <p className="text-red-600 font-semibold">Rejected Requests</p>
         </div>
-        <div className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center">
+        <div
+          className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center transition-all"
+          // onClick={() => router.push("/company/event-history")}
+        >
           <p className="text-3xl font-bold text-purple-700">
             {completedJobs.length}
           </p>
@@ -343,7 +359,7 @@ export default function CompanyDashboard() {
       {completedJobs.length > 0 && (
         <div className="max-w-6xl mx-auto mb-6">
           <button
-            onClick={() => setShowHistory(!showHistory)}
+            onClick={() => router.push("/company/event-history")}
             className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg"
           >
             {showHistory ? "Hide" : "Show"} Event History (
@@ -353,49 +369,7 @@ export default function CompanyDashboard() {
       )}
 
       {/* Event History Section */}
-      {showHistory && (
-        <div className="max-w-6xl mx-auto mb-8 bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">
-            📜 Event History
-          </h3>
-          <div className="max-h-96 overflow-y-auto space-y-2">
-            {completedJobs.map((job) => {
-              const jobApplicants = applications.filter(
-                (app) => app.job_id === job.id,
-              );
-              const acceptedCount = jobApplicants.filter(
-                (app) => app.status === "accepted",
-              ).length;
-
-              return (
-                <div
-                  key={job.id}
-                  onClick={() => openHistoryJobModal(job)}
-                  className="flex justify-between items-center p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200 hover:shadow-md transition-all cursor-pointer"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-800">{job.title}</h4>
-                    <p className="text-sm text-gray-600">
-                      {job.event_type} • {job.location}
-                    </p>
-                    <p className="text-sm text-gray-600">Date: {job.date}</p>
-                    <p className="text-sm text-gray-600">
-                      {acceptedCount} accepted • {jobApplicants.length} total
-                      applicants
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                      ✓ Completed
-                    </span>
-                    <span className="text-gray-400 text-xl">→</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      
 
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Pending Requests */}
@@ -505,83 +479,128 @@ export default function CompanyDashboard() {
               </button>
             </div>
           ) : (
-            <div className="space-y-6">
-              {approvedJobs.map((job) => {
-                const jobApplicants = applications.filter(
-                  (app) => app.job_id === job.id,
-                );
-                const acceptedCandidates = jobApplicants.filter(
-                  (app) => app.status === "accepted",
-                );
-                const pendingCandidates = jobApplicants.filter(
-                  (app) => app.status === "pending",
-                );
+            <>
+              <div className="space-y-6">
+                {currentActiveJobs.map((job) => {
+                  const jobApplicants = applications.filter(
+                    (app) => app.job_id === job.id,
+                  );
+                  const acceptedCandidates = jobApplicants.filter(
+                    (app) => app.status === "accepted",
+                  );
+                  const pendingCandidates = jobApplicants.filter(
+                    (app) => app.status === "pending",
+                  );
 
-                return (
-                  <div
-                    key={job.id}
-                    className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100"
-                  >
-                    {/* Job Header */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-                          {job.title}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {job.event_type} • {job.location} • 📅{" "}
-                          {job.event_start_date === job.event_end_date
-                            ? `${job.event_start_date} at ${job.event_start_time}`
-                            : `${job.event_start_date} to ${job.event_end_date}, ${job.event_start_time} - ${job.event_end_time}`}
-                        </p>
-                      </div>
+                  return (
+                    <div
+                      key={job.id}
+                      className="bg-white rounded-3xl shadow-xl p-6 border border-gray-400"
+                    >
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div className="flex-1">
+                          <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                            {job.title}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {job.event_type} • {job.location} • 📅{" "}
+                            {job.event_start_date === job.event_end_date
+                              ? `${job.event_start_date} at ${job.event_start_time}`
+                              : `${job.event_start_date} to ${job.event_end_date}, ${job.event_start_time} - ${job.event_end_time}`}
+                          </p>
+                        </div>
 
-                      {/* ✅ UPDATED BUTTONS */}
-                      <div className="flex gap-2 flex-wrap">
-                        {/* View Applicants Button */}
-                        <button
-                          onClick={() =>
-                            router.push(`/company/applicants/${job.id}`)
-                          }
-                          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
-                        >
-                          👥 View Applicants
-                        </button>
-
-                        {/* Export Button - only show if has accepted candidates */}
-                        {acceptedCandidates.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
                           <button
-                            onClick={() => exportCandidates(job.id, job.title)}
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+                            onClick={() =>
+                              router.push(`/company/applicants/${job.id}`)
+                            }
+                            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
                           >
-                            📊 Export Excel
+                            👥 View Applicants
                           </button>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Stats */}
-                    <div className="flex gap-3 flex-wrap">
-                      <div className="bg-green-50 border border-green-200 px-4 py-2 rounded-full">
-                        <span className="text-green-700 font-semibold text-sm">
-                          ✓ {acceptedCandidates.length} Accepted
-                        </span>
+                          {acceptedCandidates.length > 0 && (
+                            <button
+                              onClick={() =>
+                                exportCandidates(job.id, job.title)
+                              }
+                              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+                            >
+                              📊 Export Excel
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="bg-yellow-50 border border-yellow-200 px-4 py-2 rounded-full">
-                        <span className="text-yellow-700 font-semibold text-sm">
-                          ⏳ {pendingCandidates.length} Pending Admin Review
-                        </span>
-                      </div>
-                      <div className="bg-blue-50 border border-blue-200 px-4 py-2 rounded-full">
-                        <span className="text-blue-700 font-semibold text-sm">
-                          📋 {jobApplicants.length} Total Applications
-                        </span>
+
+                      <div className="flex gap-3 flex-wrap">
+                        <div className="bg-green-50 border border-green-200 px-4 py-2 rounded-full">
+                          <span className="text-green-700 font-semibold text-sm">
+                            ✓ {acceptedCandidates.length} Accepted
+                          </span>
+                        </div>
+                        <div className="bg-yellow-50 border border-yellow-200 px-4 py-2 rounded-full">
+                          <span className="text-yellow-700 font-semibold text-sm">
+                            ⏳ {pendingCandidates.length} Pending Admin Review
+                          </span>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200 px-4 py-2 rounded-full">
+                          <span className="text-blue-700 font-semibold text-sm">
+                            📋 {jobApplicants.length} Total Applications
+                          </span>
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* ✅ Pagination for Active Jobs */}
+              {totalActiveJobsPages > 1 && (
+                <div className="mt-8 flex justify-center items-center gap-2">
+                  <button
+                    onClick={() =>
+                      setActiveJobsPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={activeJobsPage === 1}
+                    className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    ← Previous
+                  </button>
+
+                  <div className="flex gap-2">
+                    {Array.from(
+                      { length: totalActiveJobsPages },
+                      (_, i) => i + 1,
+                    ).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setActiveJobsPage(page)}
+                        className={`w-10 h-10 rounded-xl font-semibold transition-all ${
+                          activeJobsPage === page
+                            ? "bg-indigo-600 text-white"
+                            : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+
+                  <button
+                    onClick={() =>
+                      setActiveJobsPage((prev) =>
+                        Math.min(totalActiveJobsPages, prev + 1),
+                      )
+                    }
+                    disabled={activeJobsPage === totalActiveJobsPages}
+                    className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -942,6 +961,8 @@ export default function CompanyDashboard() {
           </div>
         </div>
       )}
+
+      <CompanyFooter />
     </main>
   );
 }

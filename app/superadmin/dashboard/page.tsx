@@ -55,6 +55,9 @@ type Application = {
   status: "pending" | "accepted" | "rejected";
 };
 
+const REQUESTS_PER_PAGE = 5;
+const JOBS_PER_PAGE = 5;
+
 export default function SuperAdminDashboard() {
   const router = useRouter();
   const [pendingRequests, setPendingRequests] = useState<JobRequest[]>([]);
@@ -75,6 +78,9 @@ export default function SuperAdminDashboard() {
   const [finalTitle, setFinalTitle] = useState("");
   const [finalPayment, setFinalPayment] = useState("");
   const [finalDescription, setFinalDescription] = useState("");
+
+  const [requestsPage, setRequestsPage] = useState(1);
+  const [jobsPage, setJobsPage] = useState(1);
 
   useEffect(() => {
     const user = localStorage.getItem("currentUser");
@@ -98,7 +104,6 @@ export default function SuperAdminDashboard() {
 
   const loadData = async () => {
     try {
-      // Load job requests
       const requestsData = await apiCall("/job-requests", { method: "GET" });
 
       if (requestsData.success) {
@@ -109,7 +114,6 @@ export default function SuperAdminDashboard() {
         setAllRequests(requestsData.jobRequests);
       }
 
-      // Load jobs
       const jobsData = await apiCall("/jobs", { method: "GET" });
 
       if (jobsData.success) {
@@ -120,7 +124,6 @@ export default function SuperAdminDashboard() {
         setMyJobs(activeJobs);
       }
 
-      // Load applications
       const appsData = await apiCall("/applications", { method: "GET" });
 
       if (appsData.success) {
@@ -204,6 +207,23 @@ export default function SuperAdminDashboard() {
       setProcessing(false);
     }
   };
+
+  // Pagination logic for requests
+  const totalRequestsPages = Math.ceil(
+    pendingRequests.length / REQUESTS_PER_PAGE,
+  );
+  const requestsStartIndex = (requestsPage - 1) * REQUESTS_PER_PAGE;
+  const requestsEndIndex = requestsStartIndex + REQUESTS_PER_PAGE;
+  const currentRequests = pendingRequests.slice(
+    requestsStartIndex,
+    requestsEndIndex,
+  );
+
+  // Pagination logic for jobs
+  const totalJobsPages = Math.ceil(myJobs.length / JOBS_PER_PAGE);
+  const jobsStartIndex = (jobsPage - 1) * JOBS_PER_PAGE;
+  const jobsEndIndex = jobsStartIndex + JOBS_PER_PAGE;
+  const currentJobs = myJobs.slice(jobsStartIndex, jobsEndIndex);
 
   if (loading) {
     return (
@@ -320,143 +340,239 @@ export default function SuperAdminDashboard() {
       )}
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Pending Requests */}
+        {/* ✅ Pending Requests with Pagination - DARK MODE */}
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-800 mb-6">
             ⏳ Pending Job Requests ({pendingRequests.length})
           </h2>
 
           {pendingRequests.length === 0 ? (
-            <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-              <p className="text-gray-500">No pending requests!</p>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg p-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                No pending requests!
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {pendingRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="bg-white rounded-3xl shadow-xl p-6 border-2 border-yellow-200 hover:shadow-2xl transition-all"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">
-                        {request.title}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        🏢 {request.company_name}
+            <>
+              <div className="space-y-4">
+                {currentRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border-2 border-yellow-200 dark:border-yellow-700 hover:shadow-2xl transition-all"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+                          {request.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          🏢 {request.company_name}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500">
+                          Submitted: {request.submitted_at}
+                        </p>
+                      </div>
+                      <span className="bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 px-3 py-1 rounded-full text-xs font-semibold">
+                        NEW
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-sm mb-4">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Type:</span>{" "}
+                        {request.event_type}
                       </p>
-                      <p className="text-sm text-gray-500">
-                        Submitted: {request.submitted_at}
+                      <p className="text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Location:</span>{" "}
+                        {request.location}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Date:</span>{" "}
+                        {request.event_date} at {request.event_time}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Helpers:</span>{" "}
+                        {request.helpers_needed}
+                      </p>
+                      <p className="text-gray-800 dark:text-gray-200 font-bold">
+                        <span className="font-medium">Payment Offered:</span>{" "}
+                        {request.payment_offered}
                       </p>
                     </div>
-                    <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
-                      NEW
-                    </span>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openApprovalModal(request)}
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-lg"
+                      >
+                        ✓ Approve & Post
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedRequest(request);
+                          setShowRejectModal(true);
+                        }}
+                        className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg"
+                      >
+                        ✗ Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination for Requests */}
+              {totalRequestsPages > 1 && (
+                <div className="mt-6 flex justify-center items-center gap-2">
+                  <button
+                    onClick={() =>
+                      setRequestsPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={requestsPage === 1}
+                    className="px-3 py-2 bg-white dark:bg-gray-800 rounded-xl border-2 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400 font-semibold hover:bg-yellow-50 dark:hover:bg-yellow-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                  >
+                    ← Prev
+                  </button>
+
+                  <div className="flex gap-1">
+                    {Array.from(
+                      { length: totalRequestsPages },
+                      (_, i) => i + 1,
+                    ).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setRequestsPage(page)}
+                        className={`w-8 h-8 rounded-lg font-semibold text-sm transition-all ${
+                          requestsPage === page
+                            ? "bg-yellow-500 dark:bg-yellow-600 text-white"
+                            : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
                   </div>
 
-                  <div className="space-y-2 text-sm mb-4">
-                    <p className="text-gray-600">
-                      <span className="font-medium">Type:</span>{" "}
-                      {request.event_type}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Location:</span>{" "}
-                      {request.location}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Date:</span>{" "}
-                      {request.event_date} at {request.event_time}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Helpers:</span>{" "}
-                      {request.helpers_needed}
-                    </p>
-                    <p className="text-gray-800 font-bold">
-                      <span className="font-medium">Payment Offered:</span>{" "}
-                      {request.payment_offered}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openApprovalModal(request)}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-lg"
-                    >
-                      ✓ Approve & Post
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedRequest(request);
-                        setShowRejectModal(true);
-                      }}
-                      className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg"
-                    >
-                      ✗ Reject
-                    </button>
-                  </div>
+                  <button
+                    onClick={() =>
+                      setRequestsPage((prev) =>
+                        Math.min(totalRequestsPages, prev + 1),
+                      )
+                    }
+                    disabled={requestsPage === totalRequestsPages}
+                    className="px-3 py-2 bg-white dark:bg-gray-800 rounded-xl border-2 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400 font-semibold hover:bg-yellow-50 dark:hover:bg-yellow-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                  >
+                    Next →
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* My Active Jobs */}
+        {/* ✅ My Active Jobs with Pagination - DARK MODE */}
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-800 mb-6">
             🎯 My Active Jobs ({myJobs.length})
           </h2>
 
           {myJobs.length === 0 ? (
-            <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-              <p className="text-gray-500">No active jobs posted yet.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg p-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                No active jobs posted yet.
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {myJobs.map((job) => {
-                const jobApplicants = applications.filter(
-                  (app) => app.job_id === job.id,
-                );
-                const pendingCount = jobApplicants.filter(
-                  (app) => app.status === "pending",
-                ).length;
-                const acceptedCount = jobApplicants.filter(
-                  (app) => app.status === "accepted",
-                ).length;
+            <>
+              <div className="space-y-4">
+                {currentJobs.map((job) => {
+                  const jobApplicants = applications.filter(
+                    (app) => app.job_id === job.id,
+                  );
+                  const pendingCount = jobApplicants.filter(
+                    (app) => app.status === "pending",
+                  ).length;
+                  const acceptedCount = jobApplicants.filter(
+                    (app) => app.status === "accepted",
+                  ).length;
 
-                return (
-                  <div
-                    key={job.id}
-                    onClick={() =>
-                      router.push(`/superadmin/applicants/${job.id}`)
-                    }
-                    className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:scale-105 transition-all cursor-pointer"
-                  >
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-                      {job.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      🏢 {job.company_name} • 📅{" "}
-                      {job.event_start_date === job.event_end_date
-                        ? job.event_start_date
-                        : `${job.event_start_date} to ${job.event_end_date}`}
-                    </p>
+                  return (
+                    <div
+                      key={job.id}
+                      onClick={() =>
+                        router.push(`/superadmin/applicants/${job.id}`)
+                      }
+                      className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:scale-105 transition-all cursor-pointer"
+                    >
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                        {job.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        🏢 {job.company_name} • 📅{" "}
+                        {job.event_start_date === job.event_end_date
+                          ? job.event_start_date
+                          : `${job.event_start_date} to ${job.event_end_date}`}
+                      </p>
 
-                    <div className="flex gap-2 mb-3">
-                      <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-semibold">
-                        ⏳ {pendingCount} Pending
-                      </span>
-                      <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
-                        ✓ {acceptedCount} Accepted
-                      </span>
+                      <div className="flex gap-2 mb-3">
+                        <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-semibold">
+                          ⏳ {pendingCount} Pending
+                        </span>
+                        <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
+                          ✓ {acceptedCount} Accepted
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">
+                        Posted Payment: {job.payment}
+                      </p>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">
-                      Posted Payment: {job.payment}
-                    </p>
+              {/* Pagination for Jobs */}
+              {totalJobsPages > 1 && (
+                <div className="mt-6 flex justify-center items-center gap-2">
+                  <button
+                    onClick={() => setJobsPage((prev) => Math.max(1, prev - 1))}
+                    disabled={jobsPage === 1}
+                    className="px-3 py-2 bg-white dark:bg-gray-800 rounded-xl border-2 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400 font-semibold hover:bg-blue-50 dark:hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                  >
+                    ← Prev
+                  </button>
+
+                  <div className="flex gap-1">
+                    {Array.from(
+                      { length: totalJobsPages },
+                      (_, i) => i + 1,
+                    ).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setJobsPage(page)}
+                        className={`w-8 h-8 rounded-lg font-semibold text-sm transition-all ${
+                          jobsPage === page
+                            ? "bg-blue-500 dark:bg-blue-600 text-white"
+                            : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+
+                  <button
+                    onClick={() =>
+                      setJobsPage((prev) => Math.min(totalJobsPages, prev + 1))
+                    }
+                    disabled={jobsPage === totalJobsPages}
+                    className="px-3 py-2 bg-white dark:bg-gray-800 rounded-xl border-2 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400 font-semibold hover:bg-blue-50 dark:hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
