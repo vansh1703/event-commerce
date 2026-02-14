@@ -204,7 +204,7 @@ export default function CompletedEventsPage() {
         <div className="max-w-7xl mx-auto">
           <SeekerNavbar />
 
-          <h1 className="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent m-4">
+          <h1 className="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mt-4">
             Completed Events History
           </h1>
 
