@@ -204,20 +204,20 @@ export default function CompletedEventsPage() {
         <div className="max-w-7xl mx-auto">
           <SeekerNavbar />
 
-          <h1 className="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent m-4">
             Completed Events History
           </h1>
 
-          {/* ✅ SEARCH & FILTERS */}
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-lg p-6 border border-white/20 dark:border-gray-700 mb-8">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+          {/* ✅ SEARCH & FILTERS - Added mobile spacing */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg p-6 border border-white/20 mb-8 mt-6 md:mt-0">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
               🔍 Search & Filter Completed Events
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Search by Job Title */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Search by Job Title
                 </label>
                 <input
@@ -225,13 +225,13 @@ export default function CompletedEventsPage() {
                   placeholder="e.g., Wedding Helpers"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  className="w-full border-2 border-gray-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 placeholder:text-gray-400"
                 />
               </div>
 
               {/* Filter by Location */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Filter by Location
                 </label>
                 <input
@@ -239,19 +239,19 @@ export default function CompletedEventsPage() {
                   placeholder="e.g., Delhi"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  className="w-full border-2 border-gray-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 placeholder:text-gray-400"
                 />
               </div>
 
               {/* Filter by Rating */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Filter by Rating
                 </label>
                 <select
                   value={ratingFilter}
                   onChange={(e) => setRatingFilter(e.target.value)}
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200"
+                  className="w-full border-2 border-gray-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
                 >
                   <option value="all">All Events</option>
                   <option value="rated">Rated</option>
@@ -261,13 +261,13 @@ export default function CompletedEventsPage() {
 
               {/* Filter by Red Flag */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Filter by Red Flag
                 </label>
                 <select
                   value={flagFilter}
                   onChange={(e) => setFlagFilter(e.target.value)}
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200"
+                  className="w-full border-2 border-gray-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
                 >
                   <option value="all">All Events</option>
                   <option value="flagged">Flagged</option>
@@ -287,18 +287,18 @@ export default function CompletedEventsPage() {
             </div>
 
             {/* Results Count */}
-            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-              Showing <span className="font-semibold text-indigo-600 dark:text-indigo-400">{filteredApplications.length}</span> completed events
+            <div className="mt-4 text-sm text-gray-600">
+              Showing <span className="font-semibold text-indigo-600">{filteredApplications.length}</span> completed events
               {(searchQuery || locationFilter || ratingFilter !== "all" || flagFilter !== "all") && (
-                <span className="ml-2 text-purple-600 dark:text-purple-400">(filtered)</span>
+                <span className="ml-2 text-purple-600">(filtered)</span>
               )}
             </div>
           </div>
 
-          {/* ✅ COMPLETED EVENTS LIST */}
+          {/* ✅ COMPLETED EVENTS LIST - White cards always */}
           {currentApplications.length === 0 ? (
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-lg p-6 md:p-8 text-center border border-white/20 dark:border-gray-700">
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg p-6 md:p-8 text-center border border-white/20">
+              <p className="text-gray-500 mb-4">
                 {(searchQuery || locationFilter || ratingFilter !== "all" || flagFilter !== "all")
                   ? "No completed events match your filters."
                   : "No completed events yet."}
@@ -325,30 +325,30 @@ export default function CompletedEventsPage() {
                   return (
                     <div
                       key={app.id}
-                      className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-xl p-6 border border-white/20 dark:border-gray-700"
+                      className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-6 border border-white/20"
                     >
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                         <div className="flex-1">
-                          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                          <h2 className="text-2xl font-bold text-gray-800 mb-2">
                             {job.title}
                           </h2>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm text-gray-600">
                             {job.event_type} • {job.location}
                           </p>
 
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm text-gray-600">
                             📅 {job.event_start_date === job.event_end_date
                               ? job.event_start_date
                               : `${job.event_start_date} to ${job.event_end_date}`}
                           </p>
 
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm text-gray-600">
                             🕐 {job.event_start_time === job.event_end_time
                               ? job.event_start_time
                               : `${job.event_start_time} - ${job.event_end_time}`}
                           </p>
 
-                          <p className="text-sm text-gray-600 dark:text-gray-400">💰 {job.payment}</p>
+                          <p className="text-sm text-gray-600">💰 {job.payment}</p>
                         </div>
 
                         <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg">
@@ -357,29 +357,29 @@ export default function CompletedEventsPage() {
                       </div>
 
                       {jobRating && (
-                        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-4 mb-3">
-                          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-3">
+                          <p className="text-sm font-semibold text-yellow-800 mb-1">
                             Your Rating:
                           </p>
-                          <p className="text-yellow-600 dark:text-yellow-400">
+                          <p className="text-yellow-600">
                             {"⭐".repeat(jobRating.stars)} ({jobRating.stars}/5)
                           </p>
-                          <p className="text-xs text-yellow-500 dark:text-yellow-500 mt-1">{jobRating.date}</p>
+                          <p className="text-xs text-yellow-500 mt-1">{jobRating.date}</p>
                         </div>
                       )}
 
                       {jobFlag && (
-                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-2xl p-4 mb-3">
-                          <p className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
+                        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-3">
+                          <p className="text-sm font-semibold text-red-800 mb-1">
                             🚩 Red Flag:
                           </p>
-                          <p className="text-red-600 dark:text-red-400">{jobFlag.reason}</p>
-                          <p className="text-xs text-red-500 dark:text-red-500 mt-1">{jobFlag.date}</p>
+                          <p className="text-red-600">{jobFlag.reason}</p>
+                          <p className="text-xs text-red-500 mt-1">{jobFlag.date}</p>
                         </div>
                       )}
 
-                      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <div className="bg-gray-50 rounded-2xl p-4">
+                        <p className="text-sm text-gray-600">
                           <span className="font-semibold">Completed on:</span> {job.event_end_date}
                         </p>
                       </div>
@@ -394,7 +394,7 @@ export default function CompletedEventsPage() {
                   <button
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border-2 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-indigo-50 dark:hover:bg-indigo-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     ← Previous
                   </button>
@@ -407,7 +407,7 @@ export default function CompletedEventsPage() {
                         className={`w-10 h-10 rounded-xl font-semibold transition-all ${
                           currentPage === page
                             ? "bg-indigo-600 text-white"
-                            : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-2 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
                         }`}
                       >
                         {page}
@@ -418,7 +418,7 @@ export default function CompletedEventsPage() {
                   <button
                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border-2 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-indigo-50 dark:hover:bg-indigo-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     Next →
                   </button>
