@@ -33,7 +33,11 @@ export default function AllRequestsPage() {
   const [filteredRequests, setFilteredRequests] = useState<JobRequest[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  
+  // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   useEffect(() => {
     loadRequests();
@@ -41,7 +45,7 @@ export default function AllRequestsPage() {
 
   useEffect(() => {
     filterRequests();
-  }, [statusFilter, allRequests]);
+  }, [statusFilter, searchQuery, dateFilter, allRequests]);
 
   const loadRequests = async () => {
     try {
@@ -64,14 +68,32 @@ export default function AllRequestsPage() {
   };
 
   const filterRequests = () => {
-    if (statusFilter === "all") {
-      setFilteredRequests(allRequests);
-    } else {
-      setFilteredRequests(
-        allRequests.filter((req) => req.status === statusFilter),
+    let filtered = [...allRequests];
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((req) => req.status === statusFilter);
+    }
+
+    // Filter by search query (event name/title)
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((req) =>
+        req.title.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    setCurrentPage(1); // Reset to first page when filter changes
+
+    // Filter by event start date
+    if (dateFilter) {
+      filtered = filtered.filter((req) => req.event_start_date === dateFilter);
+    }
+
+    setFilteredRequests(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setDateFilter("");
   };
 
   const totalPages = Math.ceil(filteredRequests.length / ITEMS_PER_PAGE);
@@ -99,6 +121,26 @@ export default function AllRequestsPage() {
       default:
         return "⏳";
     }
+  };
+
+  const getFilteredCount = (status: string) => {
+    let filtered = allRequests;
+
+    if (status !== "all") {
+      filtered = filtered.filter((r) => r.status === status);
+    }
+
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((r) =>
+        r.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    if (dateFilter) {
+      filtered = filtered.filter((r) => r.event_start_date === dateFilter);
+    }
+
+    return filtered.length;
   };
 
   if (loading) {
@@ -133,8 +175,62 @@ export default function AllRequestsPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        {/* Search & Filters */}
+        <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100 mb-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            🔍 Search & Filter Requests
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {/* Search by Event Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search by Event Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Wedding Event"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full border-2 border-gray-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 placeholder:text-gray-400"
+              />
+            </div>
+
+            {/* Filter by Event Start Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Event Start Date
+              </label>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full border-2 border-gray-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+              />
+            </div>
+
+            {/* Clear Filters */}
+            <div className="flex items-end">
+              <button
+                onClick={clearFilters}
+                className="w-full bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold shadow-lg"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          {/* Results Count */}
+          <div className="text-sm text-gray-600">
+            Showing <span className="font-semibold text-indigo-600">{filteredRequests.length}</span> requests
+            {(searchQuery || dateFilter) && (
+              <span className="ml-2 text-purple-600">(filtered)</span>
+            )}
+          </div>
+        </div>
+
+        {/* Status Filter Buttons */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setStatusFilter("all")}
@@ -144,7 +240,7 @@ export default function AllRequestsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              All ({allRequests.length})
+              All ({getFilteredCount("all")})
             </button>
             <button
               onClick={() => setStatusFilter("pending")}
@@ -154,8 +250,7 @@ export default function AllRequestsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Pending (
-              {allRequests.filter((r) => r.status === "pending").length})
+              Pending ({getFilteredCount("pending")})
             </button>
             <button
               onClick={() => setStatusFilter("approved")}
@@ -165,8 +260,7 @@ export default function AllRequestsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Approved (
-              {allRequests.filter((r) => r.status === "approved").length})
+              Approved ({getFilteredCount("approved")})
             </button>
             <button
               onClick={() => setStatusFilter("rejected")}
@@ -176,16 +270,27 @@ export default function AllRequestsPage() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              Rejected (
-              {allRequests.filter((r) => r.status === "rejected").length})
+              Rejected ({getFilteredCount("rejected")})
             </button>
           </div>
         </div>
 
         {/* Requests List */}
         {currentRequests.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-            <p className="text-gray-500">No requests found.</p>
+          <div className="bg-white rounded-3xl shadow-lg p-8 text-center border border-gray-100">
+            <p className="text-gray-500 mb-4">
+              {(searchQuery || dateFilter)
+                ? "No requests match your filters."
+                : "No requests found."}
+            </p>
+            {(searchQuery || dateFilter) && (
+              <button
+                onClick={clearFilters}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -196,7 +301,7 @@ export default function AllRequestsPage() {
               >
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="text-xl font-bold text-gray-800">
                         {request.title}
                       </h3>
@@ -208,7 +313,7 @@ export default function AllRequestsPage() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
                       <p>🏢 Company: {request.company_name}</p>
                       <p>
                         📅 Date:{" "}
@@ -218,7 +323,7 @@ export default function AllRequestsPage() {
                       </p>
                       <p>📍 Location: {request.location}</p>
                       <p>👥 Helpers: {request.helpers_needed}</p>
-                      <p>💰 Payment Offered: {request.payment_offered}</p>
+                      <p>💰 Payment: {request.payment_offered}</p>
                       <p>🕐 Submitted: {request.submitted_at}</p>
                     </div>
 
@@ -241,7 +346,7 @@ export default function AllRequestsPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-8 flex justify-center items-center gap-2">
+          <div className="mt-8 flex justify-center items-center gap-2 flex-wrap">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}

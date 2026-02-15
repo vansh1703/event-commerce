@@ -90,8 +90,11 @@ export default function CreateCompanyPage() {
         </div>
 
         <div className="bg-white shadow-2xl rounded-3xl p-8 border border-gray-100">
+          <h1>
+            👑
+          </h1>
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            👑 Create New Company Account
+             Create New Company Account
           </h1>
           <p className="text-gray-600 mb-8">
             Create credentials for a new company. Share the login details with them after creation.

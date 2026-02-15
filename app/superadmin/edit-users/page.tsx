@@ -40,6 +40,9 @@ export default function EditUsersPage() {
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
 
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
   useEffect(() => {
     const user = localStorage.getItem("currentUser");
     if (!user) {
@@ -54,7 +57,26 @@ export default function EditUsersPage() {
       return;
     }
 
-    loadUsers();
+    // Check password protection
+    const editUsersAuth = sessionStorage.getItem("editUsersAuth");
+    if (editUsersAuth !== "authorized") {
+      const password = prompt(
+        "🔒 Enter SuperAdmin password to access User Management:",
+      );
+      if (password === "123456") {
+        sessionStorage.setItem("editUsersAuth", "authorized");
+        setIsAuthorized(true);
+        setCheckingAuth(false);
+        loadUsers();
+      } else {
+        alert("❌ Incorrect password! Redirecting to dashboard...");
+        router.push("/superadmin/dashboard");
+      }
+    } else {
+      setIsAuthorized(true);
+      setCheckingAuth(false);
+      loadUsers();
+    }
   }, [router]);
 
   useEffect(() => {
@@ -65,7 +87,7 @@ export default function EditUsersPage() {
     try {
       const data = await apiCall("/users/seekers", { method: "GET" });
       if (data.success) {
-        console.log('Loaded users:', data.users);
+        console.log("Loaded users:", data.users);
         setUsers(data.users);
       }
     } catch (error) {
@@ -82,10 +104,16 @@ export default function EditUsersPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (user) =>
-          (user.full_name?.toLowerCase() || user.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-          (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-          (user.phone || '').includes(searchTerm) ||
-          (user.city?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+          (
+            user.full_name?.toLowerCase() ||
+            user.name?.toLowerCase() ||
+            ""
+          ).includes(searchTerm.toLowerCase()) ||
+          (user.email?.toLowerCase() || "").includes(
+            searchTerm.toLowerCase(),
+          ) ||
+          (user.phone || "").includes(searchTerm) ||
+          (user.city?.toLowerCase() || "").includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -100,19 +128,17 @@ export default function EditUsersPage() {
 
   const getCities = () => {
     const cities = new Set(
-      users
-        .map((user) => user.city)
-        .filter((city): city is string => !!city)
+      users.map((user) => user.city).filter((city): city is string => !!city),
     );
     return Array.from(cities).sort();
   };
 
   const openEditModal = (user: User) => {
     setSelectedUser(user);
-    setEditEmail(user.email || '');
+    setEditEmail(user.email || "");
     setEditPassword("");
-    setEditFullName(user.full_name || user.name || '');
-    setEditPhone(user.phone || '');
+    setEditFullName(user.full_name || user.name || "");
+    setEditPhone(user.phone || "");
     setShowEditModal(true);
   };
 
@@ -156,7 +182,7 @@ export default function EditUsersPage() {
 
   const handleDelete = async (userId: string, userName: string) => {
     const confirmed = confirm(
-      `⚠️ Are you sure you want to delete "${userName}"?\n\nThis will also delete all their applications and data. This action cannot be undone!`
+      `⚠️ Are you sure you want to delete "${userName}"?\n\nThis will also delete all their applications and data. This action cannot be undone!`,
     );
 
     if (!confirmed) return;
@@ -181,7 +207,12 @@ export default function EditUsersPage() {
 
   const getInitials = (name: string) => {
     if (!name) return "??";
-    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const getUserDisplayName = (user: User) => {
@@ -194,15 +225,21 @@ export default function EditUsersPage() {
   const endIndex = startIndex + USERS_PER_PAGE;
   const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
-  if (loading) {
+  if (loading || checkingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading users...</p>
+          <p className="text-gray-600">
+            {checkingAuth ? "Checking authorization..." : "Loading users..."}
+          </p>
         </div>
       </div>
     );
+  }
+
+  if (!isAuthorized) {
+    return null;
   }
 
   return (
@@ -219,9 +256,11 @@ export default function EditUsersPage() {
             </button>
             <h1>👤</h1>
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-               Manage Job Seekers
+              Manage Job Seekers
             </h1>
-            <p className="text-gray-600 mt-2">Total: {users.length} job seekers</p>
+            <p className="text-gray-600 mt-2">
+              Total: {users.length} job seekers
+            </p>
           </div>
 
           <LogoutButton />
@@ -229,8 +268,10 @@ export default function EditUsersPage() {
 
         {/* Search & Filter */}
         <div className="bg-white rounded-3xl shadow-lg p-6 mb-8">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">🔍 Search & Filter Users</h3>
-          
+          <h3 className="text-lg font-bold text-gray-800 mb-4">
+            🔍 Search & Filter Users
+          </h3>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div>
@@ -268,9 +309,24 @@ export default function EditUsersPage() {
             </div>
           </div>
 
-          <p className="text-sm text-gray-600 mt-4">
-            Showing {filteredUsers.length} of {users.length} users
-          </p>
+          <div className="flex justify-between items-center mt-4">
+            <p className="text-sm text-gray-600">
+              Showing {filteredUsers.length} of {users.length} users
+            </p>
+
+            {/* Clear Filters Button */}
+            {(searchTerm || cityFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setCityFilter("all");
+                }}
+                className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-2 rounded-xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold text-sm shadow-lg"
+              >
+                ✕ Clear Filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Users Grid */}
@@ -303,15 +359,27 @@ export default function EditUsersPage() {
                       </div>
                     )}
                     <div className="flex-1">
-                      <h3 className="font-bold text-gray-800 text-sm">{getUserDisplayName(user)}</h3>
-                      <p className="text-xs text-gray-600">{user.city || 'No city'}</p>
+                      <h3 className="font-bold text-gray-800 text-sm">
+                        {getUserDisplayName(user)}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        {user.city || "No city"}
+                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-1 text-xs text-gray-600 mb-4">
-                    <p><strong>Email:</strong> {user.email}</p>
-                    <p><strong>Phone:</strong> {user.phone}</p>
-                    {user.age && <p><strong>Age:</strong> {user.age} years</p>}
+                    <p>
+                      <strong>Email:</strong> {user.email}
+                    </p>
+                    <p>
+                      <strong>Phone:</strong> {user.phone}
+                    </p>
+                    {user.age && (
+                      <p>
+                        <strong>Age:</strong> {user.age} years
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
@@ -322,7 +390,9 @@ export default function EditUsersPage() {
                       ✏️ Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(user.id, getUserDisplayName(user))}
+                      onClick={() =>
+                        handleDelete(user.id, getUserDisplayName(user))
+                      }
                       className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white py-2 rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all font-semibold text-xs"
                     >
                       🗑️ Delete
@@ -336,7 +406,9 @@ export default function EditUsersPage() {
             {totalPages > 1 && (
               <div className="mt-8 flex justify-center items-center gap-2">
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={currentPage === 1}
                   className="px-4 py-2 bg-white rounded-xl border-2 border-orange-200 text-orange-600 font-semibold hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
@@ -344,23 +416,27 @@ export default function EditUsersPage() {
                 </button>
 
                 <div className="flex gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-10 rounded-xl font-semibold transition-all ${
-                        currentPage === page
-                          ? "bg-orange-600 text-white"
-                          : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-10 h-10 rounded-xl font-semibold transition-all ${
+                          currentPage === page
+                            ? "bg-orange-600 text-white"
+                            : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
                 </div>
 
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 bg-white rounded-xl border-2 border-orange-200 text-orange-600 font-semibold hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
@@ -387,7 +463,9 @@ export default function EditUsersPage() {
             <div className="grid grid-cols-2 gap-4 mb-6">
               {/* Profile Photo */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">📸 Profile Photo</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                  📸 Profile Photo
+                </h3>
                 {selectedUser.profile_photo ? (
                   <img
                     src={selectedUser.profile_photo}
@@ -407,7 +485,9 @@ export default function EditUsersPage() {
 
               {/* ID Proof Photo */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">🆔 ID Proof</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                  🆔 ID Proof
+                </h3>
                 {selectedUser.id_proof_photo ? (
                   <img
                     src={selectedUser.id_proof_photo}

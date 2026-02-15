@@ -36,6 +36,9 @@ export default function EditCompaniesPage() {
   const [editContactPerson, setEditContactPerson] = useState("");
   const [editPhone, setEditPhone] = useState("");
 
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
   useEffect(() => {
     const user = localStorage.getItem("currentUser");
     if (!user) {
@@ -50,7 +53,26 @@ export default function EditCompaniesPage() {
       return;
     }
 
-    loadCompanies();
+    // Check password protection
+    const editCompaniesAuth = sessionStorage.getItem("editCompaniesAuth");
+    if (editCompaniesAuth !== "authorized") {
+      const password = prompt(
+        "🔒 Enter SuperAdmin password to access Company Management:",
+      );
+      if (password === "123456") {
+        sessionStorage.setItem("editCompaniesAuth", "authorized");
+        setIsAuthorized(true);
+        setCheckingAuth(false);
+        loadCompanies();
+      } else {
+        alert("❌ Incorrect password! Redirecting to dashboard...");
+        router.push("/superadmin/dashboard");
+      }
+    } else {
+      setIsAuthorized(true);
+      setCheckingAuth(false);
+      loadCompanies();
+    }
   }, [router]);
 
   useEffect(() => {
@@ -71,22 +93,30 @@ export default function EditCompaniesPage() {
   };
 
   const filterCompanies = () => {
-  let filtered = [...companies];
+    let filtered = [...companies];
 
-  if (searchTerm) {
-    filtered = filtered.filter(
-      (company) =>
-        (company.company_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (company.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (company.contact_person?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (company.phone || '').includes(searchTerm) ||
-        (company.company_address?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-    );
-  }
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (company) =>
+          (company.company_name?.toLowerCase() || "").includes(
+            searchTerm.toLowerCase(),
+          ) ||
+          (company.email?.toLowerCase() || "").includes(
+            searchTerm.toLowerCase(),
+          ) ||
+          (company.contact_person?.toLowerCase() || "").includes(
+            searchTerm.toLowerCase(),
+          ) ||
+          (company.phone || "").includes(searchTerm) ||
+          (company.company_address?.toLowerCase() || "").includes(
+            searchTerm.toLowerCase(),
+          ),
+      );
+    }
 
-  setFilteredCompanies(filtered);
-  setCurrentPage(1);
-};
+    setFilteredCompanies(filtered);
+    setCurrentPage(1);
+  };
 
   const openEditModal = (company: Company) => {
     setSelectedCompany(company);
@@ -141,7 +171,7 @@ export default function EditCompaniesPage() {
 
   const handleDelete = async (companyId: string, companyName: string) => {
     const confirmed = confirm(
-      `⚠️ Are you sure you want to delete "${companyName}"?\n\nThis will also delete all their job requests and data. This action cannot be undone!`
+      `⚠️ Are you sure you want to delete "${companyName}"?\n\nThis will also delete all their job requests and data. This action cannot be undone!`,
     );
 
     if (!confirmed) return;
@@ -170,15 +200,34 @@ export default function EditCompaniesPage() {
   const endIndex = startIndex + COMPANIES_PER_PAGE;
   const currentCompanies = filteredCompanies.slice(startIndex, endIndex);
 
-  if (loading) {
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+  //         <p className="text-gray-600">Loading companies...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
+  if (loading || checkingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading companies...</p>
+          <p className="text-gray-600">
+            {checkingAuth
+              ? "Checking authorization..."
+              : "Loading companies..."}
+          </p>
         </div>
       </div>
     );
+  }
+
+  if (!isAuthorized) {
+    return null;
   }
 
   return (
@@ -195,9 +244,11 @@ export default function EditCompaniesPage() {
             </button>
             <h1>🏢</h1>
             <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-               Manage Companies
+              Manage Companies
             </h1>
-            <p className="text-gray-600 mt-2">Total: {companies.length} companies</p>
+            <p className="text-gray-600 mt-2">
+              Total: {companies.length} companies
+            </p>
           </div>
 
           <LogoutButton />
@@ -205,24 +256,43 @@ export default function EditCompaniesPage() {
 
         {/* Search Bar */}
         <div className="bg-white rounded-3xl shadow-lg p-6 mb-8">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">🔍 Search Companies</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-4">
+            🔍 Search Companies
+          </h3>
           <input
             type="text"
             placeholder="Search by company name, email, contact person, or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            autoComplete="off"
+            name="company-search-field"
             className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
           />
-          <p className="text-sm text-gray-600 mt-2">
-            Showing {filteredCompanies.length} of {companies.length} companies
-          </p>
+
+          <div className="flex justify-between items-center mt-4">
+            <p className="text-sm text-gray-600">
+              Showing {filteredCompanies.length} of {companies.length} companies
+            </p>
+
+            {/* Clear Filter Button */}
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-2 rounded-xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold text-sm shadow-lg"
+              >
+                ✕ Clear Search
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Companies List */}
         {filteredCompanies.length === 0 ? (
           <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
             <p className="text-gray-500">
-              {searchTerm ? "No companies match your search." : "No companies found."}
+              {searchTerm
+                ? "No companies match your search."
+                : "No companies found."}
             </p>
           </div>
         ) : (
@@ -233,13 +303,24 @@ export default function EditCompaniesPage() {
                   key={company.id}
                   className="bg-white rounded-2xl shadow-lg p-6 border-2 border-blue-200 hover:shadow-xl transition-all"
                 >
-                  <h3 className="text-xl font-bold text-gray-800 mb-3">{company.company_name}</h3>
-                  
+                  <h3 className="text-xl font-bold text-gray-800 mb-3">
+                    {company.company_name}
+                  </h3>
+
                   <div className="space-y-2 text-sm text-gray-600 mb-4">
-                    <p><strong>Email:</strong> {company.email}</p>
-                    <p><strong>Contact Person:</strong> {company.contact_person}</p>
-                    <p><strong>Phone:</strong> {company.phone}</p>
-                    <p><strong>Address:</strong> {company.company_address || "N/A"}</p>
+                    <p>
+                      <strong>Email:</strong> {company.email}
+                    </p>
+                    <p>
+                      <strong>Contact Person:</strong> {company.contact_person}
+                    </p>
+                    <p>
+                      <strong>Phone:</strong> {company.phone}
+                    </p>
+                    <p>
+                      <strong>Address:</strong>{" "}
+                      {company.company_address || "N/A"}
+                    </p>
                   </div>
 
                   <div className="flex gap-2">
@@ -250,7 +331,9 @@ export default function EditCompaniesPage() {
                       ✏️ Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(company.id, company.company_name)}
+                      onClick={() =>
+                        handleDelete(company.id, company.company_name)
+                      }
                       className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white py-2 rounded-xl hover:from-red-600 hover:to-rose-700 transition-all font-semibold text-sm"
                     >
                       🗑️ Delete
@@ -264,7 +347,9 @@ export default function EditCompaniesPage() {
             {totalPages > 1 && (
               <div className="mt-8 flex justify-center items-center gap-2">
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={currentPage === 1}
                   className="px-4 py-2 bg-white rounded-xl border-2 border-blue-200 text-blue-600 font-semibold hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
@@ -272,23 +357,27 @@ export default function EditCompaniesPage() {
                 </button>
 
                 <div className="flex gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-10 rounded-xl font-semibold transition-all ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-10 h-10 rounded-xl font-semibold transition-all ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
                 </div>
 
                 <button
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 bg-white rounded-xl border-2 border-blue-200 text-blue-600 font-semibold hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
