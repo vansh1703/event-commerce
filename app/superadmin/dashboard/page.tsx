@@ -81,6 +81,7 @@ export default function SuperAdminDashboard() {
 
   const [requestsPage, setRequestsPage] = useState(1);
   const [jobsPage, setJobsPage] = useState(1);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const user = localStorage.getItem("currentUser");
@@ -246,32 +247,163 @@ export default function SuperAdminDashboard() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
       {/* Header */}
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-        <div>
-          <span>👑</span>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
-             <span>SuperAdmin Dashboard</span>
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Full platform control & management
-          </p>
+      <div className="max-w-6xl mx-auto mb-10">
+        <div className="flex justify-between items-center gap-4">
+          <div>
+            <span className="text-2xl md:text-3xl">👑</span>
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+              
+              <span>SuperAdmin Dashboard</span>
+            </h1>
+            <p className="text-gray-600 mt-2 text-sm md:text-base">
+              Full platform control & management
+            </p>
+          </div>
+
+          {/* Desktop Menu */}
+          <div className="hidden lg:flex items-center gap-2 xl:gap-3">
+            <button
+              onClick={() => router.push("/superadmin/all-requests")}
+              className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 xl:px-6 py-2.5 xl:py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg text-sm xl:text-base flex items-center gap-2"
+            >
+              <span className="text-base xl:text-lg">📋</span>
+              <span className="hidden xl:inline">View All Requests</span>
+              <span className="xl:hidden">Requests</span>
+            </button>
+            <button
+              onClick={() => router.push("/superadmin/create-company")}
+              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 xl:px-6 py-2.5 xl:py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg text-sm xl:text-base flex items-center gap-2"
+            >
+              <span className="text-base xl:text-lg">➕</span>
+              <span className="hidden xl:inline">Create Company</span>
+              <span className="xl:hidden">Company</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                const password = prompt(
+                  "Enter SuperAdmin password to access Company Management:",
+                );
+                if (password === "123456") {
+                  router.push("/superadmin/edit-companies");
+                } else if (password !== null) {
+                  alert("❌ Incorrect password!");
+                }
+              }}
+              className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white px-4 xl:px-6 py-2.5 xl:py-3 rounded-2xl hover:from-blue-600 hover:to-cyan-700 transition-all duration-300 font-semibold shadow-lg text-sm xl:text-base flex items-center gap-2"
+            >
+              <span className="text-base xl:text-lg">🏢</span>
+              <span className="hidden xl:inline">Edit Companies</span>
+              <span className="xl:hidden">Companies</span>
+            </button>
+            <button
+              onClick={() => {
+                const password = prompt(
+                  "Enter SuperAdmin password to access User Management:",
+                );
+                if (password === "123456") {
+                  router.push("/superadmin/edit-users");
+                } else if (password !== null) {
+                  alert("❌ Incorrect password!");
+                }
+              }}
+              className="bg-gradient-to-r from-orange-500 to-red-600 text-white px-4 xl:px-6 py-2.5 xl:py-3 rounded-2xl hover:from-orange-600 hover:to-red-700 transition-all duration-300 font-semibold shadow-lg text-sm xl:text-base flex items-center gap-2"
+            >
+              <span className="text-base xl:text-lg">👤</span>
+              <span className="hidden xl:inline">Edit Users</span>
+              <span className="xl:hidden">Users</span>
+            </button>
+            <LogoutButton />
+          </div>
+
+          {/* Mobile Hamburger Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden flex flex-col gap-1.5 p-2"
+            aria-label="Toggle menu"
+          >
+            <span
+              className={`w-6 h-0.5 bg-indigo-600 transition-all ${
+                mobileMenuOpen ? "rotate-45 translate-y-2" : ""
+              }`}
+            />
+            <span
+              className={`w-6 h-0.5 bg-indigo-600 transition-all ${
+                mobileMenuOpen ? "opacity-0" : ""
+              }`}
+            />
+            <span
+              className={`w-6 h-0.5 bg-indigo-600 transition-all ${
+                mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""
+              }`}
+            />
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push("/superadmin/create-company")}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg"
-          >
-            + Create Company
-          </button>
-          <button
-            onClick={() => router.push("/superadmin/all-requests")}
-            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg"
-          >
-            View All Requests
-          </button>
-          <LogoutButton />
-        </div>
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden mt-4 space-y-3 pb-4 border-t border-gray-200 pt-4">
+            <button
+              onClick={() => {
+                router.push("/superadmin/all-requests");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-3 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+            >
+              <span className="text-lg">📋</span>
+              <span>View All Requests</span>
+            </button>
+
+            <button
+              onClick={() => {
+                router.push("/superadmin/create-company");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+            >
+              <span className="text-lg">➕</span>
+              <span>Create Company</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                const password = prompt(
+                  "Enter SuperAdmin password to access Company Management:",
+                );
+                if (password === "123456") {
+                  router.push("/superadmin/edit-companies");
+                  setMobileMenuOpen(false);
+                } else if (password !== null) {
+                  alert("❌ Incorrect password!");
+                }
+              }}
+              className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white px-4 py-3 rounded-2xl hover:from-blue-600 hover:to-cyan-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+            >
+              <span className="text-lg">🏢</span>
+              <span>Edit Companies</span>
+            </button>
+            <button
+              onClick={() => {
+                const password = prompt(
+                  "Enter SuperAdmin password to access User Management:",
+                );
+                if (password === "123456") {
+                  router.push("/superadmin/edit-users");
+                  setMobileMenuOpen(false);
+                } else if (password !== null) {
+                  alert("❌ Incorrect password!");
+                }
+              }}
+              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white px-4 py-3 rounded-2xl hover:from-orange-600 hover:to-red-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+            >
+              <span className="text-lg">👤</span>
+              <span>Edit Users</span>
+            </button>
+            <div className="pt-2">
+              <LogoutButton />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats Overview */}
