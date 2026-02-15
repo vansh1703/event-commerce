@@ -66,6 +66,7 @@ export default function EventHistoryPage() {
   const router = useRouter();
   const [companyUser, setCompanyUser] = useState<any>(null);
   const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,9 +82,18 @@ export default function EventHistoryPage() {
   const [eventsPage, setEventsPage] = useState(1);
   const [candidatesPage, setCandidatesPage] = useState(1);
 
+  // Search & Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [eventTypeFilter, setEventTypeFilter] = useState("all");
+  const [candidateSearchTerm, setCandidateSearchTerm] = useState("");
+
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    filterJobs();
+  }, [searchTerm, eventTypeFilter, completedJobs]);
 
   const checkAuth = async () => {
     const user = localStorage.getItem("currentUser");
@@ -131,10 +141,38 @@ export default function EventHistoryPage() {
     }
   };
 
+  const filterJobs = () => {
+    let filtered = [...completedJobs];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (job) =>
+          job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          job.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          job.event_type.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Event type filter
+    if (eventTypeFilter !== "all") {
+      filtered = filtered.filter((job) => job.event_type === eventTypeFilter);
+    }
+
+    setFilteredJobs(filtered);
+    setEventsPage(1); // Reset to first page
+  };
+
+  const getEventTypes = () => {
+    const types = new Set(completedJobs.map((job) => job.event_type));
+    return Array.from(types);
+  };
+
   const openHistoryJobModal = (job: Job) => {
     setSelectedHistoryJob(job);
     setShowHistoryModal(true);
-    setCandidatesPage(1); // Reset candidates pagination
+    setCandidatesPage(1);
+    setCandidateSearchTerm("");
   };
 
   const openCandidateModal = async (candidate: Application) => {
@@ -218,30 +256,44 @@ export default function EventHistoryPage() {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  // Pagination for candidates in modal
   const getModalCandidates = () => {
     if (!selectedHistoryJob) return { candidates: [], totalPages: 0, total: 0 };
-    const candidates = applications.filter(
+    
+    let candidates = applications.filter(
       (app) => app.job_id === selectedHistoryJob.id && app.status === "accepted"
     );
+
+    // Apply search filter for candidates
+    if (candidateSearchTerm) {
+      candidates = candidates.filter(
+        (app) =>
+          app.name.toLowerCase().includes(candidateSearchTerm.toLowerCase()) ||
+          app.city.toLowerCase().includes(candidateSearchTerm.toLowerCase()) ||
+          app.phone.includes(candidateSearchTerm)
+      );
+    }
+
     const totalPages = Math.ceil(candidates.length / CANDIDATES_PER_PAGE);
     const startIndex = (candidatesPage - 1) * CANDIDATES_PER_PAGE;
     const endIndex = startIndex + CANDIDATES_PER_PAGE;
+    
     return {
       candidates: candidates.slice(startIndex, endIndex),
       totalPages,
       total: candidates.length,
+      totalUnfiltered: applications.filter(
+        (app) => app.job_id === selectedHistoryJob.id && app.status === "accepted"
+      ).length,
     };
   };
 
   // Pagination for completed events
-  const totalEventsPages = Math.ceil(completedJobs.length / EVENTS_PER_PAGE);
+  const totalEventsPages = Math.ceil(filteredJobs.length / EVENTS_PER_PAGE);
   const eventsStartIndex = (eventsPage - 1) * EVENTS_PER_PAGE;
   const eventsEndIndex = eventsStartIndex + EVENTS_PER_PAGE;
-  const currentEvents = completedJobs.slice(eventsStartIndex, eventsEndIndex);
+  const currentEvents = filteredJobs.slice(eventsStartIndex, eventsEndIndex);
 
-  // ✅ MOVED OUTSIDE THE RETURN TO FIX TYPESCRIPT ERRORS
-  const modalData = selectedHistoryJob ? getModalCandidates() : { candidates: [], totalPages: 0, total: 0 };
+  const modalData = selectedHistoryJob ? getModalCandidates() : { candidates: [], totalPages: 0, total: 0, totalUnfiltered: 0 };
 
   if (loading) {
     return (
@@ -279,10 +331,59 @@ export default function EventHistoryPage() {
             <LogoutButton />
           </div>
 
+          {/* Search & Filter Section */}
+          <div className="bg-white rounded-3xl shadow-lg p-6 mb-8">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">🔍 Search & Filter Events</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search by Title, Location, or Event Type
+                </label>
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-800"
+                />
+              </div>
+
+              {/* Event Type Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Event Type
+                </label>
+                <select
+                  value={eventTypeFilter}
+                  onChange={(e) => setEventTypeFilter(e.target.value)}
+                  className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-800"
+                >
+                  <option value="all">All Event Types</option>
+                  {getEventTypes().map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Results Count */}
+            <div className="mt-4 text-sm text-gray-600">
+              Showing {filteredJobs.length} of {completedJobs.length} events
+            </div>
+          </div>
+
           {/* Completed Events List */}
-          {completedJobs.length === 0 ? (
+          {filteredJobs.length === 0 ? (
             <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-              <p className="text-gray-500 mb-4">No completed events yet.</p>
+              <p className="text-gray-500 mb-4">
+                {searchTerm || eventTypeFilter !== "all"
+                  ? "No events match your filters."
+                  : "No completed events yet."}
+              </p>
               <button
                 onClick={() => router.push("/company/dashboard")}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
@@ -378,6 +479,7 @@ export default function EventHistoryPage() {
           onClick={() => {
             setShowHistoryModal(false);
             setCandidatesPage(1);
+            setCandidateSearchTerm("");
           }}
         >
           <div
@@ -406,7 +508,7 @@ export default function EventHistoryPage() {
               </div>
 
               {/* Export Button */}
-              {modalData.total > 0 && (
+              {Number(modalData.totalUnfiltered) > 0 && (
                 <button
                   onClick={() => exportCandidates(selectedHistoryJob.id, selectedHistoryJob.title)}
                   className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2 mb-6"
@@ -428,13 +530,39 @@ export default function EventHistoryPage() {
 
             {/* Accepted Candidates Section */}
             <div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                Accepted Candidates ({modalData.total})
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  Accepted Candidates ({modalData.totalUnfiltered})
+                </h3>
+              </div>
+
+              {/* Candidate Search */}
+              {Number(modalData.totalUnfiltered) > 0 && (
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    placeholder="Search candidates by name, city, or phone..."
+                    value={candidateSearchTerm}
+                    onChange={(e) => {
+                      setCandidateSearchTerm(e.target.value);
+                      setCandidatesPage(1);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-800"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">
+                    Showing {modalData.total} of {modalData.totalUnfiltered} candidates
+                  </p>
+                </div>
+              )}
 
               {modalData.total === 0 ? (
                 <div className="bg-gray-50 rounded-2xl p-8 text-center">
-                  <p className="text-gray-500">No candidates were accepted for this event.</p>
+                  <p className="text-gray-500">
+                    {candidateSearchTerm
+                      ? "No candidates match your search."
+                      : "No candidates were accepted for this event."}
+                  </p>
                 </div>
               ) : (
                 <>
@@ -442,7 +570,10 @@ export default function EventHistoryPage() {
                     {modalData.candidates.map((candidate) => (
                       <div
                         key={candidate.id}
-                        onClick={() => openCandidateModal(candidate)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCandidateModal(candidate);
+                        }}
                         className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-lg p-4 border-2 border-green-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer"
                       >
                         <div className="flex items-center gap-3 mb-3">
@@ -521,6 +652,7 @@ export default function EventHistoryPage() {
               onClick={() => {
                 setShowHistoryModal(false);
                 setCandidatesPage(1);
+                setCandidateSearchTerm("");
               }}
               className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg"
             >
@@ -530,7 +662,7 @@ export default function EventHistoryPage() {
         </div>
       )}
 
-      {/* Candidate Detail Modal */}
+      {/* Candidate Detail Modal - KEEP THE SAME AS BEFORE */}
       {showCandidateModal && selectedCandidate && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
@@ -540,7 +672,7 @@ export default function EventHistoryPage() {
             className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header with Photo */}
+            {/* Same candidate modal content as before - keeping it for brevity */}
             <div className="flex items-start gap-6 mb-6">
               {seekerStats?.seekerInfo?.profile_photo ? (
                 <img
@@ -558,9 +690,7 @@ export default function EventHistoryPage() {
                 </div>
               )}
               <div className="flex-1">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                  {selectedCandidate.name}
-                </h2>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">{selectedCandidate.name}</h2>
                 <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg inline-block">
                   ✓ Accepted by Admin
                 </span>
@@ -570,16 +700,10 @@ export default function EventHistoryPage() {
                     <span className="text-sm flex items-center gap-1">
                       ⭐{" "}
                       <span className="font-semibold">
-                        {Number(seekerStats.avgRating) > 0
-                          ? seekerStats.avgRating
-                          : "No ratings"}
+                        {Number(seekerStats.avgRating) > 0 ? seekerStats.avgRating : "No ratings"}
                       </span>
                     </span>
-                    <span
-                      className={`text-sm flex items-center gap-1 ${
-                        seekerStats.redFlagCount > 0 ? "text-red-600 font-semibold" : ""
-                      }`}
-                    >
+                    <span className={`text-sm flex items-center gap-1 ${seekerStats.redFlagCount > 0 ? "text-red-600 font-semibold" : ""}`}>
                       🚩 <span>{seekerStats.redFlagCount} Red Flags</span>
                     </span>
                     {seekerStats.isBanned && (
@@ -590,7 +714,6 @@ export default function EventHistoryPage() {
               </div>
             </div>
 
-            {/* ID Proof Section */}
             {seekerStats?.seekerInfo?.id_proof_photo && (
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -606,14 +729,11 @@ export default function EventHistoryPage() {
                     }}
                     className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
                   />
-                  <p className="text-green-600 text-sm font-semibold mt-2">
-                    🔍 Click image to enlarge
-                  </p>
+                  <p className="text-green-600 text-sm font-semibold mt-2">🔍 Click image to enlarge</p>
                 </div>
               </div>
             )}
 
-            {/* Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Phone</p>
@@ -633,7 +753,6 @@ export default function EventHistoryPage() {
               </div>
             </div>
 
-            {/* Experience */}
             <div className="bg-gray-50 rounded-2xl p-4 mb-6">
               <p className="text-sm text-gray-500 mb-1">Experience</p>
               <p className="text-gray-800">{selectedCandidate.experience}</p>
@@ -643,7 +762,6 @@ export default function EventHistoryPage() {
               Applied on: {new Date(selectedCandidate.applied_at).toLocaleDateString()}
             </p>
 
-            {/* Red Flags (if any) */}
             {seekerStats && seekerStats.redFlags && seekerStats.redFlags.length > 0 && (
               <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6">
                 <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2">
@@ -661,7 +779,6 @@ export default function EventHistoryPage() {
               </div>
             )}
 
-            {/* Ratings (if any) */}
             {seekerStats && seekerStats.ratings && seekerStats.ratings.length > 0 && (
               <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-6">
                 <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">

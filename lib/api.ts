@@ -15,7 +15,7 @@ export async function apiCall<T = any>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
-    body: isBodyObject ? JSON.stringify(options.body) : options.body,
+    body: options.body,
   });
 
   let data: any = null;

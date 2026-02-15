@@ -220,13 +220,24 @@ export default function SuperAdminApplicantsPage() {
   const updateStatus = async (newStatus: "accepted" | "rejected") => {
     if (!selectedApplicant) return;
 
+    console.log("========================================");
+    console.log("🚀 UPDATE STATUS FUNCTION CALLED");
+    console.log("Application ID:", selectedApplicant.id);
+    console.log("Seeker ID:", selectedApplicant.seeker_id);
+    console.log("New Status:", newStatus);
+    console.log("========================================");
+
     setProcessing(true);
 
     try {
+      console.log("📧 Making PATCH request...");
+
       const data = await apiCall(`/applications/${selectedApplicant.id}`, {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
       });
+
+      console.log("📧 API Response received:", data);
 
       if (data.success) {
         alert(
@@ -236,6 +247,7 @@ export default function SuperAdminApplicantsPage() {
         await loadData();
       }
     } catch (error: any) {
+      console.error("❌ Error in updateStatus:", error);
       alert(error.message || "Failed to update application status");
     } finally {
       setProcessing(false);

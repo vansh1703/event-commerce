@@ -30,7 +30,7 @@ export default function CompanyFooter() {
           <div>
             <h4 className="text-lg font-semibold mb-3">Created By</h4>
             <p className="text-purple-200 text-sm">
-              Made with 💜 by <span className="font-semibold text-white">Your Name</span>
+              Made with 💜 by <span className="font-semibold text-white">Vansh</span>
             </p>
             <p className="text-purple-200 text-sm mt-2">
               © {new Date().getFullYear()} EventHire. All rights reserved.

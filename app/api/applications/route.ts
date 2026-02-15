@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { notifyNewApplication } from '@/lib/email';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-// ✅ Helper function to add/subtract days from a date
+// Helper function to add/subtract days from a date
 function addDays(dateString: string, days: number): Date {
   const date = new Date(dateString);
   date.setDate(date.getDate() + days);
   return date;
 }
 
-// ✅ Helper function to check if date ranges overlap (with buffer)
+// Helper function to check if date ranges overlap (with buffer)
 function dateRangesOverlap(
   start1: string,
   end1: string,
@@ -21,13 +22,11 @@ function dateRangesOverlap(
   end2: string,
   bufferDays: number = 1
 ): boolean {
-  // Add buffer to both ranges
   const bufferedStart1 = addDays(start1, -bufferDays);
   const bufferedEnd1 = addDays(end1, bufferDays);
   const bufferedStart2 = addDays(start2, -bufferDays);
   const bufferedEnd2 = addDays(end2, bufferDays);
 
-  // Check if ranges overlap
   return bufferedStart1 <= bufferedEnd2 && bufferedStart2 <= bufferedEnd1;
 }
 
@@ -102,10 +101,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Get job details (including date range)
+    // Get job details (including date range and company info)
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
-      .select('archived, completed, helpers_needed, event_start_date, event_end_date')
+      .select('archived, completed, helpers_needed, event_start_date, event_end_date, title, company_name')
       .eq('id', jobId)
       .single();
 
@@ -145,8 +144,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ CHECK FOR DATE CONFLICTS WITH ACCEPTED JOBS
-    // Get all ACCEPTED applications for this seeker
+    // CHECK FOR DATE CONFLICTS WITH ACCEPTED JOBS
     const { data: acceptedApplications, error: acceptedError } = await supabaseAdmin
       .from('applications')
       .select('job_id')
@@ -156,7 +154,6 @@ export async function POST(request: NextRequest) {
     if (acceptedError) throw acceptedError;
 
     if (acceptedApplications && acceptedApplications.length > 0) {
-      // Get job details for all accepted applications
       const acceptedJobIds = acceptedApplications.map(app => app.job_id);
       
       const { data: acceptedJobs, error: acceptedJobsError } = await supabaseAdmin
@@ -166,14 +163,13 @@ export async function POST(request: NextRequest) {
 
       if (acceptedJobsError) throw acceptedJobsError;
 
-      // Check if any accepted job overlaps with this job (with ±1 day buffer)
       for (const acceptedJob of acceptedJobs || []) {
         if (dateRangesOverlap(
           job.event_start_date,
           job.event_end_date,
           acceptedJob.event_start_date,
           acceptedJob.event_end_date,
-          1 // ✅ 1 day buffer
+          1
         )) {
           return NextResponse.json(
             { 
@@ -205,7 +201,7 @@ export async function POST(request: NextRequest) {
       day: 'numeric',
     });
 
-    // ✅ Insert application
+    // Insert application
     const { data, error } = await supabaseAdmin
       .from('applications')
       .insert({
@@ -225,6 +221,23 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    // ✅ SEND EMAIL NOTIFICATION TO SUPERADMIN
+    try {
+      const superAdminEmail = process.env.SUPERADMIN_EMAIL || 'newa1703@gmail.com';
+      
+      await notifyNewApplication(
+        superAdminEmail,
+        name,
+        job.title,
+        job.company_name
+      );
+      
+      console.log('✅ Application email sent to SuperAdmin:', superAdminEmail);
+    } catch (emailError) {
+      console.error('❌ Email notification failed:', emailError);
+      // Don't fail the application if email fails
+    }
 
     return NextResponse.json({
       success: true,

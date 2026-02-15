@@ -109,7 +109,7 @@ export default function Footer() {
             © {new Date().getFullYear()} EventHire. All rights reserved.
           </p>
           <p className="text-purple-200 text-sm">
-            Created with 💜 by <span className="font-semibold text-white">Your Name</span>
+            Created with 💜 by <span className="font-semibold text-white">Vansh</span>
           </p>
         </div>
       </div>

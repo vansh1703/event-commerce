@@ -324,8 +324,8 @@ export default function HomePage() {
                         <li className="flex gap-2 md:gap-3">
                           <span className="font-bold text-blue-600">3.</span>
                           <span>
-                            <strong>Admin reviews</strong> and approves quality
-                            job postings
+                            <strong>Get email notifications</strong> when jobs
+                            are approved or rejected with reasons
                           </span>
                         </li>
                         <li className="flex gap-2 md:gap-3">
@@ -337,6 +337,20 @@ export default function HomePage() {
                         </li>
                         <li className="flex gap-2 md:gap-3">
                           <span className="font-bold text-blue-600">5.</span>
+                          <span>
+                            <strong>Search & filter</strong> through active jobs
+                            and accepted candidates
+                          </span>
+                        </li>
+                        <li className="flex gap-2 md:gap-3">
+                          <span className="font-bold text-blue-600">6.</span>
+                          <span>
+                            <strong>Access event history</strong> with complete
+                            candidate records and performance data
+                          </span>
+                        </li>
+                        <li className="flex gap-2 md:gap-3">
+                          <span className="font-bold text-blue-600">7.</span>
                           <span>
                             <strong>Export candidate data</strong> to Excel for
                             your records
@@ -375,12 +389,19 @@ export default function HomePage() {
                         <li className="flex gap-2 md:gap-3">
                           <span className="font-bold text-green-600">4.</span>
                           <span>
-                            <strong>Admin reviews applications</strong> and
-                            accepts qualified candidates
+                            <strong>Get email notifications</strong> instantly
+                            when your application is accepted or rejected
                           </span>
                         </li>
                         <li className="flex gap-2 md:gap-3">
                           <span className="font-bold text-green-600">5.</span>
+                          <span>
+                            <strong>Track your applications</strong> with
+                            real-time status updates
+                          </span>
+                        </li>
+                        <li className="flex gap-2 md:gap-3">
+                          <span className="font-bold text-green-600">6.</span>
                           <span>
                             <strong>Build your reputation</strong> with ratings
                             and track your event history
@@ -496,6 +517,83 @@ export default function HomePage() {
                         </h4>
                         <p className="text-xs md:text-sm text-gray-600">
                           Works perfectly on phones, tablets, and desktops
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border-2 border-purple-200 rounded-xl p-3 md:p-4 flex items-start gap-2 md:gap-3">
+                      <span className="text-xl md:text-2xl">📧</span>
+                      <div>
+                        <h4 className="font-bold text-gray-800 text-sm md:text-base">
+                          Email Notifications
+                        </h4>
+                        <p className="text-xs md:text-sm text-gray-600">
+                          Real-time email alerts for job status, applications,
+                          and approvals
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Company Advanced Features */}
+                <div>
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center gap-3">
+                    <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-sm md:text-base">
+                      🏢
+                    </span>
+                    Advanced Company Tools
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-3 md:p-4 flex items-start gap-2 md:gap-3">
+                      <span className="text-xl md:text-2xl">📜</span>
+                      <div>
+                        <h4 className="font-bold text-blue-800 text-sm md:text-base">
+                          Event History Dashboard
+                        </h4>
+                        <p className="text-xs md:text-sm text-blue-600">
+                          Access complete event history with accepted
+                          candidates, ratings, and performance data
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-3 md:p-4 flex items-start gap-2 md:gap-3">
+                      <span className="text-xl md:text-2xl">🔍</span>
+                      <div>
+                        <h4 className="font-bold text-purple-800 text-sm md:text-base">
+                          Advanced Search & Filters
+                        </h4>
+                        <p className="text-xs md:text-sm text-purple-600">
+                          Search jobs by title, location, event type, and filter
+                          candidates by skills
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-3 md:p-4 flex items-start gap-2 md:gap-3">
+                      <span className="text-xl md:text-2xl">📧</span>
+                      <div>
+                        <h4 className="font-bold text-green-800 text-sm md:text-base">
+                          Automated Email Updates
+                        </h4>
+                        <p className="text-xs md:text-sm text-green-600">
+                          Get instant email notifications for job approvals,
+                          rejections, and new applications
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-3 md:p-4 flex items-start gap-2 md:gap-3">
+                      <span className="text-xl md:text-2xl">📋</span>
+                      <div>
+                        <h4 className="font-bold text-orange-800 text-sm md:text-base">
+                          Rejected Requests Management
+                        </h4>
+                        <p className="text-xs md:text-sm text-orange-600">
+                          Dedicated page to review rejected job requests with
+                          reasons and resubmission options
                         </p>
                       </div>
                     </div>
@@ -641,7 +739,7 @@ export default function HomePage() {
             <p>© {new Date().getFullYear()} EventHire. All rights reserved.</p>
             <p className="mt-2">
               Made with 💜 by{" "}
-              <span className="font-semibold text-white">Your Name</span>
+              <span className="font-semibold text-white">Vansh</span>
             </p>
           </div>
         </div>
