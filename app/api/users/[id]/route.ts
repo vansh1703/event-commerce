@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -20,8 +21,12 @@ export async function PATCH(
 
     // Common fields
     if (body.email) updateData.email = body.email;
-    if (body.password) updateData.password = body.password;
     if (body.phone) updateData.phone = body.phone;
+
+    // ✅ SECURE: Hash password if provided
+    if (body.password) {
+      updateData.password = await bcrypt.hash(body.password, 10);
+    }
 
     // Company-specific fields
     if (body.company_name) updateData.company_name = body.company_name;

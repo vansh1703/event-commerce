@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
@@ -25,16 +26,23 @@ export async function POST(request: Request) {
       .from('users')
       .select('*')
       .eq('email', email)
-      .eq('password', password)
       .eq('user_type', 'company')
       .single();
 
     if (error || !user) {
-      console.log('Login failed for:', email);
+      console.log('Login failed - user not found:', email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    console.log('Login successful for:', email, user);
+    // ✅ SECURE: Compare hashed password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+
+    if (!isValidPassword) {
+      console.log('Login failed - invalid password:', email);
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    console.log('Login successful for:', email);
 
     return NextResponse.json({ 
       success: true, 

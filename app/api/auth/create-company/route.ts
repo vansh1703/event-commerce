@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
@@ -28,12 +29,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This email is already registered' }, { status: 400 });
     }
 
-    // Create company account
+    // ✅ SECURE: Hash password before storing
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create company account with hashed password
     const { data: company, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
         email,
-        password,
+        password: hashedPassword, // ✅ Store hashed password
         user_type: 'company',
         company_name: companyName,
         company_address: companyAddress,
