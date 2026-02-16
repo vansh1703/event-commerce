@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
@@ -23,12 +24,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Account already exists' }, { status: 400 });
     }
 
-    // Create user
+    // ✅ SECURE: Hash password before storing
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user with hashed password
     const { data: user, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
         email,
-        password,
+        password: hashedPassword, // ✅ Store hashed password
         user_type: 'company',
         company_name: companyName,
       })
