@@ -28,7 +28,7 @@ export default function SeekerLoginPage() {
 
       if (data.success) {
         localStorage.setItem('seekerUser', JSON.stringify(data.user));
-        alert("Login Successful!");
+        // alert("Login Successful!");
         router.push("/events");
       }
     } catch (error: any) {

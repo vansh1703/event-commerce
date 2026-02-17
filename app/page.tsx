@@ -311,7 +311,7 @@ export default function HomePage() {
                           <span className="font-bold text-blue-600">1.</span>
                           <span>
                             <strong>Contact SuperAdmin</strong> to get company
-                            credentials created
+                            credentials created (<strong>9717921434</strong>)
                           </span>
                         </li>
                         <li className="flex gap-2 md:gap-3">
@@ -720,7 +720,7 @@ export default function HomePage() {
                   href="mailto:support@eventhire.com"
                   className="hover:text-white transition-colors"
                 >
-                  support@eventhire.com
+                  newa1703@gmail.com
                 </a>
               </p>
               <p className="text-purple-200">
@@ -729,7 +729,7 @@ export default function HomePage() {
                   href="tel:+1234567890"
                   className="hover:text-white transition-colors"
                 >
-                  +1 (234) 567-890
+                  9717921434
                 </a>
               </p>
             </div>

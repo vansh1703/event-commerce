@@ -49,13 +49,13 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-4">Contact Us</h4>
             <ul className="space-y-2 text-sm">
               <li className="text-purple-200">
-                📧 Email: <a href="mailto:contact@eventhire.com" className="hover:text-white transition-colors">contact@eventhire.com</a>
+                📧 Email: <a href="mailto:newa1703@gmail.com" className="hover:text-white transition-colors">newa1703@gmail.com</a>
               </li>
               <li className="text-purple-200">
-                📞 Phone: <a href="tel:+1234567890" className="hover:text-white transition-colors">+1 (234) 567-890</a>
+                📞 Phone: <a href="tel:9717921434" className="hover:text-white transition-colors">9717921434</a>
               </li>
               <li className="text-purple-200">
-                📍 Location: Your City, Country
+                📍 Location: New Delhi, India💜
               </li>
             </ul>
           </div>

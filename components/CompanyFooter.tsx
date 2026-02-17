@@ -19,10 +19,10 @@ export default function CompanyFooter() {
           <div>
             <h4 className="text-lg font-semibold mb-3">Need Support?</h4>
             <p className="text-purple-200 text-sm mb-2">
-              📧 Email: <a href="mailto:support@eventhire.com" className="hover:text-white transition-colors">support@eventhire.com</a>
+              📧 Email: <a href="mailto:newa1703@gmail.com" className="hover:text-white transition-colors">newa1703@gmail.com</a>
             </p>
             <p className="text-purple-200 text-sm">
-              📞 Phone: <a href="tel:+1234567890" className="hover:text-white transition-colors">+1 (234) 567-890</a>
+              📞 Phone: <a href="tel:9717921434" className="hover:text-white transition-colors">9717921434</a>
             </p>
           </div>
 

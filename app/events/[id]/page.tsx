@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+// ✅ STEP 1: Import Dialog component and useDialog hook
+import Dialog from "@/components/ui/Dialog";
+import { useDialog } from "@/hooks/useDialog";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -32,6 +35,9 @@ export default function JobDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params.id as string;
+
+  // ✅ STEP 2: Initialize dialog hook at the top of component
+  const dialog = useDialog();
 
   const [job, setJob] = useState<Job | null>(null);
   const [seekerUser, setSeekerUser] = useState<any>(null);
@@ -80,12 +86,23 @@ export default function JobDetailsPage() {
         if (foundJob) {
           setJob(foundJob);
         } else {
-          alert("Job not found!");
-          router.push("/events");
+          // ✅ REPLACE alert() with dialog.showError()
+          // Parameters: title, message
+          dialog.showError(
+            "Job Not Found",
+            "This job listing could not be found."
+          );
+          // Small delay before redirect so user can see the message
+          setTimeout(() => router.push("/events"), 2000);
         }
       }
     } catch (error) {
       console.error("Error loading job:", error);
+      // ✅ OPTIONAL: Show error dialog for API failures
+      dialog.showError(
+        "Error",
+        "Failed to load job details. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -132,10 +149,19 @@ export default function JobDetailsPage() {
         [fieldName]: urlData.publicUrl,
       }));
 
-      alert(`✅ ${fieldName} uploaded successfully!`);
+      // ✅ REPLACE alert() with dialog.showSuccess()
+      // Use getFieldLabel() to show user-friendly field name
+      dialog.showSuccess(
+        "Upload Successful",
+        `${getFieldLabel(fieldName)} has been uploaded successfully!`
+      );
     } catch (error: any) {
       console.error("Upload error:", error);
-      alert(`Failed to upload ${fieldName}: ${error.message}`);
+      // ✅ REPLACE alert() with dialog.showError()
+      dialog.showError(
+        "Upload Failed",
+        `Failed to upload ${getFieldLabel(fieldName)}. Please try again.\n\nError: ${error.message}`
+      );
     } finally {
       setUploadingFiles((prev) => ({ ...prev, [fieldName]: false }));
     }
@@ -152,32 +178,56 @@ export default function JobDetailsPage() {
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // ✅ CHECK 1: User must be logged in
     if (!seekerUser) {
-      const confirmLogin = window.confirm(
-        "Please login to apply for this job. Click OK to go to login page.",
+      // ✅ REPLACE window.confirm() with dialog.showConfirm()
+      // Parameters: title, message, onConfirm callback, confirmText, cancelText
+      dialog.showConfirm(
+        "Login Required",
+        "You need to be logged in to apply for this job. Would you like to go to the login page?",
+        () => {
+          // This callback runs when user clicks "Go to Login"
+          router.push("/seeker/login");
+        },
+        "Go to Login", // Confirm button text
+        "Cancel"       // Cancel button text
       );
-      if (confirmLogin) {
-        router.push("/seeker/login");
-      }
       return;
     }
 
+    // ✅ CHECK 2: Already applied
     if (alreadyApplied) {
-      alert("You have already applied for this job!");
+      // ✅ REPLACE alert() with dialog.showInfo()
+      // Use showInfo() for informational messages (not errors)
+      dialog.showInfo(
+        "Already Applied",
+        "You have already submitted an application for this job."
+      );
       return;
     }
 
+    // ✅ CHECK 3: Job is archived
     if (job?.archived) {
-      alert("This job is no longer accepting applications (archived).");
+      // ✅ REPLACE alert() with dialog.showWarning()
+      // Use showWarning() for cautionary messages
+      dialog.showWarning(
+        "Job Archived",
+        "This job is no longer accepting applications as it has been archived."
+      );
       return;
     }
 
+    // ✅ CHECK 4: Job is completed
     if (job?.completed) {
-      alert("This job is no longer accepting applications (completed).");
+      // ✅ REPLACE alert() with dialog.showWarning()
+      dialog.showWarning(
+        "Job Completed",
+        "This job is no longer accepting applications as the event has been completed."
+      );
       return;
     }
 
-    // ✅ Validate required custom fields
+    // ✅ CHECK 5: Validate required custom fields
     if (job?.custom_fields) {
       const requiredFields = Object.entries(job.custom_fields).filter(
         ([_, required]) => required,
@@ -185,8 +235,10 @@ export default function JobDetailsPage() {
 
       for (const [fieldName] of requiredFields) {
         if (!customData[fieldName]) {
-          alert(
-            `Please complete the required field: ${getFieldLabel(fieldName)}`,
+          // ✅ REPLACE alert() with dialog.showWarning()
+          dialog.showWarning(
+            "Missing Required Field",
+            `Please complete the required field:\n\n${getFieldLabel(fieldName)}`
           );
           return;
         }
@@ -219,11 +271,21 @@ export default function JobDetailsPage() {
       }
 
       if (data.success) {
-        alert("Application submitted successfully!");
-        router.push("/my-applications");
+        // ✅ REPLACE alert() with dialog.showSuccess()
+        // Show multi-line message with \n for line breaks
+        dialog.showSuccess(
+          "Application Submitted!",
+          "Your application has been submitted successfully.\n\nWe'll notify you once it's reviewed by our team."
+        );
+        // Redirect after showing success message
+        setTimeout(() => router.push("/my-applications"), 2000);
       }
     } catch (error: any) {
-      alert(error.message || "Failed to submit application");
+      // ✅ REPLACE alert() with dialog.showError()
+      dialog.showError(
+        "Submission Failed",
+        error.message || "Failed to submit application. Please try again."
+      );
     } finally {
       setApplying(false);
     }
@@ -278,407 +340,414 @@ export default function JobDetailsPage() {
     Object.values(job.custom_fields).some((v) => v === true);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 md:px-6 py-6 md:py-10">
-      <div className="max-w-3xl mx-auto">
-        <button
-          onClick={() => router.push("/events")}
-          className="text-indigo-600 dark:text-indigo-400 hover:text-purple-600 dark:hover:text-purple-400 font-semibold mb-4 flex items-center gap-2"
-        >
-          ← Back to Jobs
-        </button>
+    <>
+      {/* ✅ STEP 3: Wrap main content in fragment so we can add Dialog at the end */}
+      <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 md:px-6 py-6 md:py-10">
+        <div className="max-w-3xl mx-auto">
+          <button
+            onClick={() => router.push("/events")}
+            className="text-indigo-600 dark:text-indigo-400 hover:text-purple-600 dark:hover:text-purple-400 font-semibold mb-4 flex items-center gap-2"
+          >
+            ← Back to Jobs
+          </button>
 
-        <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-3xl p-8 border border-gray-100 dark:border-gray-700">
-          <div className="flex justify-between items-start mb-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              {job.title}
-            </h1>
+          <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-3xl p-8 border border-gray-100 dark:border-gray-700">
+            <div className="flex justify-between items-start mb-6">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                {job.title}
+              </h1>
 
-            {isArchived && (
-              <span className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-full text-xs font-semibold">
-                📦 ARCHIVED
-              </span>
+              {isArchived && (
+                <span className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-full text-xs font-semibold">
+                  📦 ARCHIVED
+                </span>
+              )}
+              {isCompleted && (
+                <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-3 py-1 rounded-full text-xs font-semibold">
+                  ✓ COMPLETED
+                </span>
+              )}
+            </div>
+
+            {(isArchived || isCompleted) && (
+              <div className="bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-200 dark:border-orange-700 rounded-2xl p-4 mb-6">
+                <p className="text-orange-800 dark:text-orange-300 font-semibold text-sm">
+                  ⚠️ This job is no longer accepting new applications.
+                </p>
+                <p className="text-orange-700 dark:text-orange-400 text-xs mt-1">
+                  {isArchived && "The position has been archived by the admin."}
+                  {isCompleted && "This event has already been completed."}
+                </p>
+              </div>
             )}
-            {isCompleted && (
-              <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-3 py-1 rounded-full text-xs font-semibold">
-                ✓ COMPLETED
-              </span>
-            )}
-          </div>
 
-          {(isArchived || isCompleted) && (
-            <div className="bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-200 dark:border-orange-700 rounded-2xl p-4 mb-6">
-              <p className="text-orange-800 dark:text-orange-300 font-semibold text-sm">
-                ⚠️ This job is no longer accepting new applications.
-              </p>
-              <p className="text-orange-700 dark:text-orange-400 text-xs mt-1">
-                {isArchived && "The position has been archived by the admin."}
-                {isCompleted && "This event has already been completed."}
-              </p>
-            </div>
-          )}
+            <div className="space-y-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Event Type
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    {job.event_type}
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Location
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    {job.location}
+                  </p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 border-2 border-blue-200 dark:border-blue-700">
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mb-1">
+                    📅 Event Dates
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    {job.event_start_date === job.event_end_date
+                      ? job.event_start_date
+                      : `${job.event_start_date} to ${job.event_end_date}`}
+                  </p>
+                </div>
 
-          <div className="space-y-4 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                  Event Type
-                </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.event_type}
-                </p>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                  Location
-                </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.location}
-                </p>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-4 border-2 border-blue-200 dark:border-blue-700">
-                <p className="text-sm text-blue-600 dark:text-blue-400 mb-1">
-                  📅 Event Dates
-                </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.event_start_date === job.event_end_date
-                    ? job.event_start_date
-                    : `${job.event_start_date} to ${job.event_end_date}`}
-                </p>
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 border-2 border-purple-200 dark:border-purple-700">
+                  <p className="text-sm text-purple-600 dark:text-purple-400 mb-1">
+                    🕐 Event Time
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    {job.event_start_time === job.event_end_time
+                      ? job.event_start_time
+                      : `${job.event_start_time} - ${job.event_end_time}`}
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Helpers Needed
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    {job.helpers_needed}
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Payment
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    {job.payment}
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Contact
+                  </p>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    {job.contact_phone}
+                  </p>
+                </div>
               </div>
 
-              {/* ✅ TIME RANGE DISPLAY */}
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 border-2 border-purple-200 dark:border-purple-700">
-                <p className="text-sm text-purple-600 dark:text-purple-400 mb-1">
-                  🕐 Event Time
-                </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.event_start_time === job.event_end_time
-                    ? job.event_start_time
-                    : `${job.event_start_time} - ${job.event_end_time}`}
-                </p>
-              </div>
-
-              {/* <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                  Date & Time
-                </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.date} at {job.time}
-                </p>
-              </div> */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                  Helpers Needed
+                  Description
                 </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.helpers_needed}
-                </p>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                  Payment
-                </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.payment}
-                </p>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                  Contact
-                </p>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                  {job.contact_phone}
+                <p className="text-gray-800 dark:text-gray-200">
+                  {job.description}
                 </p>
               </div>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                Description
-              </p>
-              <p className="text-gray-800 dark:text-gray-200">
-                {job.description}
-              </p>
-            </div>
-          </div>
+            {alreadyApplied ? (
+              <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-2xl p-6 text-center">
+                <p className="text-green-800 dark:text-green-300 font-semibold text-lg mb-2">
+                  ✓ Already Applied
+                </p>
+                <p className="text-green-600 dark:text-green-400">
+                  You have already applied for this job.
+                </p>
+                <button
+                  onClick={() => router.push("/my-applications")}
+                  className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
+                >
+                  View My Applications
+                </button>
+              </div>
+            ) : !canApply ? (
+              <div className="bg-gray-50 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-2xl p-6 text-center">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  This job is no longer accepting applications.
+                </p>
+                <button
+                  onClick={() => router.push("/events")}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
+                >
+                  Browse Other Jobs
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">
+                  Apply for this Job
+                </h2>
 
-          {alreadyApplied ? (
-            <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-2xl p-6 text-center">
-              <p className="text-green-800 dark:text-green-300 font-semibold text-lg mb-2">
-                ✓ Already Applied
-              </p>
-              <p className="text-green-600 dark:text-green-400">
-                You have already applied for this job.
-              </p>
-              <button
-                onClick={() => router.push("/my-applications")}
-                className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
-              >
-                View My Applications
-              </button>
-            </div>
-          ) : !canApply ? (
-            <div className="bg-gray-50 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-2xl p-6 text-center">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                This job is no longer accepting applications.
-              </p>
-              <button
-                onClick={() => router.push("/events")}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
-              >
-                Browse Other Jobs
-              </button>
-            </div>
-          ) : (
-            <>
-              <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">
-                Apply for this Job
-              </h2>
+                <form onSubmit={handleApply} className="space-y-5">
+                  {/* Basic Fields */}
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    disabled={!!seekerUser || applying}
+                  />
 
-              <form onSubmit={handleApply} className="space-y-5">
-                {/* Basic Fields */}
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  disabled={!!seekerUser || applying}
-                />
+                  <input
+                    type="tel"
+                    placeholder="Phone Number"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    disabled={!!seekerUser || applying}
+                  />
 
-                <input
-                  type="tel"
-                  placeholder="Phone Number"
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
-                  disabled={!!seekerUser || applying}
-                />
+                  <input
+                    type="number"
+                    placeholder="Age"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    required
+                    disabled={applying}
+                  />
 
-                <input
-                  type="number"
-                  placeholder="Age"
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                  disabled={applying}
-                />
+                  <input
+                    type="text"
+                    placeholder="City"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    required
+                    disabled={applying}
+                  />
 
-                <input
-                  type="text"
-                  placeholder="City"
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  required
-                  disabled={applying}
-                />
+                  <textarea
+                    placeholder="Your Experience (if any)"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl min-h-[100px] bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none text-gray-800 dark:text-gray-200"
+                    value={experience}
+                    onChange={(e) => setExperience(e.target.value)}
+                    required
+                    disabled={applying}
+                  />
 
-                <textarea
-                  placeholder="Your Experience (if any)"
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl min-h-[100px] bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none text-gray-800 dark:text-gray-200"
-                  value={experience}
-                  onChange={(e) => setExperience(e.target.value)}
-                  required
-                  disabled={applying}
-                />
+                  <input
+                    type="text"
+                    placeholder="Availability (e.g., Full Day, Morning Only)"
+                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
+                    value={availability}
+                    onChange={(e) => setAvailability(e.target.value)}
+                    required
+                    disabled={applying}
+                  />
 
-                <input
-                  type="text"
-                  placeholder="Availability (e.g., Full Day, Morning Only)"
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-4 rounded-2xl bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-800 dark:text-gray-200"
-                  value={availability}
-                  onChange={(e) => setAvailability(e.target.value)}
-                  required
-                  disabled={applying}
-                />
+                  {/* ✅ DYNAMIC CUSTOM FIELDS */}
+                  {hasCustomFields && (
+                    <div className="border-t-2 border-gray-200 dark:border-gray-600 pt-6">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                        <span className="text-purple-600">📋</span>
+                        Additional Required Information
+                      </h3>
 
-                {/* ✅ DYNAMIC CUSTOM FIELDS */}
-                {hasCustomFields && (
-                  <div className="border-t-2 border-gray-200 dark:border-gray-600 pt-6">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-                      <span className="text-purple-600">📋</span>
-                      Additional Required Information
-                    </h3>
+                      <div className="space-y-4 bg-purple-50 dark:bg-purple-900/20 p-6 rounded-2xl">
+                        {Object.entries(job.custom_fields).map(
+                          ([fieldName, isRequired]) => {
+                            if (!isRequired) return null;
 
-                    <div className="space-y-4 bg-purple-50 dark:bg-purple-900/20 p-6 rounded-2xl">
-                      {Object.entries(job.custom_fields).map(
-                        ([fieldName, isRequired]) => {
-                          if (!isRequired) return null;
+                            const label = getFieldLabel(fieldName);
+                            const isPhoto = isPhotoField(fieldName);
 
-                          const label = getFieldLabel(fieldName);
-                          const isPhoto = isPhotoField(fieldName);
+                            return (
+                              <div
+                                key={fieldName}
+                                className="bg-white dark:bg-gray-700 p-4 rounded-xl"
+                              >
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                  {label} <span className="text-red-500">*</span>
+                                </label>
 
-                          return (
-                            <div
-                              key={fieldName}
-                              className="bg-white dark:bg-gray-700 p-4 rounded-xl"
-                            >
-                              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                {label} <span className="text-red-500">*</span>
-                              </label>
-
-                              {isPhoto ? (
-                                <div className="space-y-2">
+                                {isPhoto ? (
+                                  <div className="space-y-2">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file)
+                                          handleFileUpload(fieldName, file);
+                                      }}
+                                      disabled={
+                                        applying || uploadingFiles[fieldName]
+                                      }
+                                      className="w-full text-sm text-gray-600 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300"
+                                      required
+                                    />
+                                    {uploadingFiles[fieldName] && (
+                                      <p className="text-sm text-indigo-600 dark:text-indigo-400">
+                                        Uploading...
+                                      </p>
+                                    )}
+                                    {customData[fieldName] && (
+                                      <p className="text-sm text-green-600 dark:text-green-400">
+                                        ✓ Uploaded successfully
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : fieldName === "english_fluency" ? (
+                                  <div className="space-y-2">
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={customData[fieldName]?.includes(
+                                          "Reading",
+                                        )}
+                                        onChange={(e) => {
+                                          const current =
+                                            customData[fieldName] || "";
+                                          const values = current
+                                            .split(", ")
+                                            .filter((v: string) => v);
+                                          if (e.target.checked) {
+                                            values.push("Reading");
+                                          } else {
+                                            const index =
+                                              values.indexOf("Reading");
+                                            if (index > -1)
+                                              values.splice(index, 1);
+                                          }
+                                          handleCustomTextInput(
+                                            fieldName,
+                                            values.join(", "),
+                                          );
+                                        }}
+                                        className="w-4 h-4 text-indigo-600 rounded"
+                                      />
+                                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                                        Reading
+                                      </span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={customData[fieldName]?.includes(
+                                          "Writing",
+                                        )}
+                                        onChange={(e) => {
+                                          const current =
+                                            customData[fieldName] || "";
+                                          const values = current
+                                            .split(", ")
+                                            .filter((v: string) => v);
+                                          if (e.target.checked) {
+                                            values.push("Writing");
+                                          } else {
+                                            const index =
+                                              values.indexOf("Writing");
+                                            if (index > -1)
+                                              values.splice(index, 1);
+                                          }
+                                          handleCustomTextInput(
+                                            fieldName,
+                                            values.join(", "),
+                                          );
+                                        }}
+                                        className="w-4 h-4 text-indigo-600 rounded"
+                                      />
+                                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                                        Writing
+                                      </span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={customData[fieldName]?.includes(
+                                          "Understanding",
+                                        )}
+                                        onChange={(e) => {
+                                          const current =
+                                            customData[fieldName] || "";
+                                          const values = current
+                                            .split(", ")
+                                            .filter((v: string) => v);
+                                          if (e.target.checked) {
+                                            values.push("Understanding");
+                                          } else {
+                                            const index =
+                                              values.indexOf("Understanding");
+                                            if (index > -1)
+                                              values.splice(index, 1);
+                                          }
+                                          handleCustomTextInput(
+                                            fieldName,
+                                            values.join(", "),
+                                          );
+                                        }}
+                                        className="w-4 h-4 text-indigo-600 rounded"
+                                      />
+                                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                                        Understanding
+                                      </span>
+                                    </label>
+                                  </div>
+                                ) : (
                                   <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file)
-                                        handleFileUpload(fieldName, file);
-                                    }}
-                                    disabled={
-                                      applying || uploadingFiles[fieldName]
+                                    type="text"
+                                    placeholder={`Enter ${label}`}
+                                    value={customData[fieldName] || ""}
+                                    onChange={(e) =>
+                                      handleCustomTextInput(
+                                        fieldName,
+                                        e.target.value,
+                                      )
                                     }
-                                    className="w-full text-sm text-gray-600 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300"
+                                    disabled={applying}
+                                    className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200"
                                     required
                                   />
-                                  {uploadingFiles[fieldName] && (
-                                    <p className="text-sm text-indigo-600 dark:text-indigo-400">
-                                      Uploading...
-                                    </p>
-                                  )}
-                                  {customData[fieldName] && (
-                                    <p className="text-sm text-green-600 dark:text-green-400">
-                                      ✓ Uploaded successfully
-                                    </p>
-                                  )}
-                                </div>
-                              ) : fieldName === "english_fluency" ? (
-                                <div className="space-y-2">
-                                  <label className="flex items-center gap-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={customData[fieldName]?.includes(
-                                        "Reading",
-                                      )}
-                                      onChange={(e) => {
-                                        const current =
-                                          customData[fieldName] || "";
-                                        const values = current
-                                          .split(", ")
-                                          .filter((v: string) => v);
-                                        if (e.target.checked) {
-                                          values.push("Reading");
-                                        } else {
-                                          const index =
-                                            values.indexOf("Reading");
-                                          if (index > -1)
-                                            values.splice(index, 1);
-                                        }
-                                        handleCustomTextInput(
-                                          fieldName,
-                                          values.join(", "),
-                                        );
-                                      }}
-                                      className="w-4 h-4 text-indigo-600 rounded"
-                                    />
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                                      Reading
-                                    </span>
-                                  </label>
-                                  <label className="flex items-center gap-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={customData[fieldName]?.includes(
-                                        "Writing",
-                                      )}
-                                      onChange={(e) => {
-                                        const current =
-                                          customData[fieldName] || "";
-                                        const values = current
-                                          .split(", ")
-                                          .filter((v: string) => v);
-                                        if (e.target.checked) {
-                                          values.push("Writing");
-                                        } else {
-                                          const index =
-                                            values.indexOf("Writing");
-                                          if (index > -1)
-                                            values.splice(index, 1);
-                                        }
-                                        handleCustomTextInput(
-                                          fieldName,
-                                          values.join(", "),
-                                        );
-                                      }}
-                                      className="w-4 h-4 text-indigo-600 rounded"
-                                    />
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                                      Writing
-                                    </span>
-                                  </label>
-                                  <label className="flex items-center gap-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={customData[fieldName]?.includes(
-                                        "Understanding",
-                                      )}
-                                      onChange={(e) => {
-                                        const current =
-                                          customData[fieldName] || "";
-                                        const values = current
-                                          .split(", ")
-                                          .filter((v: string) => v);
-                                        if (e.target.checked) {
-                                          values.push("Understanding");
-                                        } else {
-                                          const index =
-                                            values.indexOf("Understanding");
-                                          if (index > -1)
-                                            values.splice(index, 1);
-                                        }
-                                        handleCustomTextInput(
-                                          fieldName,
-                                          values.join(", "),
-                                        );
-                                      }}
-                                      className="w-4 h-4 text-indigo-600 rounded"
-                                    />
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                                      Understanding
-                                    </span>
-                                  </label>
-                                </div>
-                              ) : (
-                                <input
-                                  type="text"
-                                  placeholder={`Enter ${label}`}
-                                  value={customData[fieldName] || ""}
-                                  onChange={(e) =>
-                                    handleCustomTextInput(
-                                      fieldName,
-                                      e.target.value,
-                                    )
-                                  }
-                                  disabled={applying}
-                                  className="w-full border-2 border-gray-200 dark:border-gray-600 p-3 rounded-xl bg-white dark:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800 dark:text-gray-200"
-                                  required
-                                />
-                              )}
-                            </div>
-                          );
-                        },
-                      )}
+                                )}
+                              </div>
+                            );
+                          },
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <button
-                  disabled={applying}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
-                >
-                  {applying ? "Submitting..." : "Submit Application"}
-                </button>
-              </form>
-            </>
-          )}
+                  <button
+                    disabled={applying}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+                  >
+                    {applying ? "Submitting..." : "Submit Application"}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+
+      {/* ✅ STEP 4: Add Dialog component at the END (after closing main tag) */}
+      <Dialog
+        isOpen={dialog.isOpen}
+        onClose={dialog.closeDialog}
+        title={dialog.config.title}
+        message={dialog.config.message}
+        type={dialog.config.type}
+        confirmText={dialog.config.confirmText}
+        cancelText={dialog.config.cancelText}
+        onConfirm={dialog.config.onConfirm}
+        showCancel={dialog.config.showCancel}
+      />
+    </>
   );
 }
