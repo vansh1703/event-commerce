@@ -87,39 +87,40 @@ export default function CompanyCalendarPage() {
 
   return (
     <>
-    <CompanySidebar
+      <CompanySidebar
         companyName={companyUser.company_name}
         companyId={companyUser.id}
-    />
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      {/* Main Content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">Event Calendar</h1>
-            <p className="text-gray-600 mt-2">
-              View all your scheduled events in calendar view
-            </p>
-          </div>
-
-          {approvedJobs.length === 0 ? (
-            <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-              <p className="text-gray-500 mb-4">
-                No active events yet. Submit a job request to get started!
+      />
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        {/* Main Content - PROPER MOBILE SPACING */}
+        <main className="lg:ml-64 pt-20 lg:pt-6 px-4 lg:px-6 pb-6">
+          <div className="max-w-6xl mx-auto">
+            {/* Header - SMALLER ON MOBILE */}
+            <div className="mb-4 lg:mb-6">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">📅 Event Calendar</h1>
+              <p className="text-sm lg:text-base text-gray-600 mt-1">
+                {/* View all your scheduled events in calendar view */}
               </p>
-              <button
-                onClick={() => router.push("/company/submit-request")}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
-              >
-                Submit Job Request
-              </button>
             </div>
-          ) : (
-            <EventCalendar jobs={approvedJobs} />
-          )}
-        </div>
-      </main>
-    </div>
+
+            {approvedJobs.length === 0 ? (
+              <div className="bg-white rounded-3xl shadow-lg p-6 lg:p-8 text-center">
+                <p className="text-gray-500 mb-4 text-sm lg:text-base">
+                  No active events yet. Submit a job request to get started!
+                </p>
+                <button
+                  onClick={() => router.push("/company/submit-request")}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg text-sm lg:text-base"
+                >
+                  Submit Job Request
+                </button>
+              </div>
+            ) : (
+              <EventCalendar jobs={approvedJobs} />
+            )}
+          </div>
+        </main>
+      </div>
     </>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { apiCall } from "@/lib/api";
 import LogoutButton from "@/components/navbar/LogoutButton";
+import SuperAdminSidebar from "@/components/SuperAdminSidebar";
 
 type Message = {
   id: string;
@@ -22,6 +23,7 @@ export default function SuperAdminMessagesPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     checkAuth();
@@ -32,6 +34,14 @@ export default function SuperAdminMessagesPage() {
       markAsRead(selectedCompanyId);
     }
   }, [selectedCompanyId]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [conversations[selectedCompanyId || ""]]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const checkAuth = async () => {
     const user = localStorage.getItem("currentUser");
@@ -74,7 +84,6 @@ export default function SuperAdminMessagesPage() {
         method: "PATCH",
         body: JSON.stringify({ companyId, userType: "superadmin" }),
       });
-      // Reload to update unread counts
       await loadConversations();
     } catch (error) {
       console.error("Error marking as read:", error);
@@ -102,7 +111,6 @@ export default function SuperAdminMessagesPage() {
       });
 
       if (data.success) {
-        // Update local state
         setConversations({
           ...conversations,
           [selectedCompanyId]: [...selectedMessages, data.message],
@@ -138,143 +146,152 @@ export default function SuperAdminMessagesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <button
-              onClick={() => router.push("/superadmin/dashboard")}
-              className="text-indigo-600 hover:text-purple-600 font-semibold mb-2 flex items-center gap-2"
-            >
-              ← Back to Dashboard
-            </button>
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              💬 Direct Messages
-            </h1>
-            <p className="text-gray-600 mt-2">
-              All company conversations
-            </p>
-          </div>
-          <LogoutButton />
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 grid grid-cols-1 md:grid-cols-3 h-[70vh]">
-          {/* Conversations List */}
-          <div className="border-r border-gray-200 overflow-y-auto bg-gray-50">
-            <div className="p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold">
-              Companies ({Object.keys(conversations).length})
+    <>
+      <SuperAdminSidebar />
+      <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 lg:ml-64 pt-20 lg:pt-6 px-4 md:px-6 py-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header - SMALLER ON MOBILE */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+            <div>
+              <button
+                onClick={() => router.push("/superadmin/dashboard")}
+                className="text-indigo-600 hover:text-purple-600 font-semibold mb-2 flex items-center gap-2 text-sm lg:text-base"
+              >
+                ← Back to Dashboard
+              </button>
+              <h1 className="text-2xl lg:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                💬 Direct Messages
+              </h1>
+              <p className="text-gray-600 mt-1 text-sm lg:text-base">
+                All company conversations
+              </p>
             </div>
-            {Object.keys(conversations).length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                No messages yet
-              </div>
-            ) : (
-              Object.entries(conversations).map(([companyId, msgs]) => {
-                const unread = getUnreadCount(companyId);
-                const lastMessage = msgs[msgs.length - 1];
-                return (
-                  <div
-                    key={companyId}
-                    onClick={() => setSelectedCompanyId(companyId)}
-                    className={`p-4 cursor-pointer border-b border-gray-200 hover:bg-white transition-all ${
-                      selectedCompanyId === companyId
-                        ? "bg-white border-l-4 border-l-indigo-600"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-800">
-                          {msgs[0]?.company_name || "Unknown Company"}
-                        </h3>
-                        <p className="text-sm text-gray-600 truncate">
-                          {lastMessage?.message || "No messages"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(lastMessage?.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      {unread > 0 && (
-                        <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                          {unread}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+            <div className="hidden sm:block">
+              <LogoutButton />
+            </div>
           </div>
 
-          {/* Chat Area */}
-          <div className="col-span-2 flex flex-col">
-            {!selectedCompanyId ? (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                Select a company to view messages
-              </div>
-            ) : (
-              <>
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-                  {selectedMessages.map((msg) => {
-                    const isMe = msg.sender_type === "superadmin";
+          {/* Messages Container - MOBILE FRIENDLY */}
+          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col" style={{ height: 'calc(100vh - 220px)' }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 h-full">
+              {/* Conversations List */}
+              <div className="border-b md:border-b-0 md:border-r border-gray-200 overflow-y-auto bg-gray-50 max-h-[40vh] md:max-h-full">
+                <div className="p-3 lg:p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm lg:text-base">
+                  Companies ({Object.keys(conversations).length})
+                </div>
+                {Object.keys(conversations).length === 0 ? (
+                  <div className="p-6 lg:p-8 text-center text-gray-500 text-sm lg:text-base">
+                    No messages yet
+                  </div>
+                ) : (
+                  Object.entries(conversations).map(([companyId, msgs]) => {
+                    const unread = getUnreadCount(companyId);
+                    const lastMessage = msgs[msgs.length - 1];
                     return (
                       <div
-                        key={msg.id}
-                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                        key={companyId}
+                        onClick={() => setSelectedCompanyId(companyId)}
+                        className={`p-3 lg:p-4 cursor-pointer border-b border-gray-200 hover:bg-white transition-all ${
+                          selectedCompanyId === companyId
+                            ? "bg-white border-l-4 border-l-indigo-600"
+                            : ""
+                        }`}
                       >
-                        <div
-                          className={`max-w-xs md:max-w-md px-4 py-3 rounded-2xl ${
-                            isMe
-                              ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                              : "bg-white border-2 border-gray-200 text-gray-800"
-                          }`}
-                        >
-                          <p className="text-sm font-semibold mb-1">
-                            {isMe ? "You" : msg.company_name}
-                          </p>
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {msg.message}
-                          </p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              isMe ? "text-white/70" : "text-gray-500"
-                            }`}
-                          >
-                            {new Date(msg.created_at).toLocaleString()}
-                          </p>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-800 text-sm lg:text-base truncate">
+                              {msgs[0]?.company_name || "Unknown Company"}
+                            </h3>
+                            <p className="text-xs lg:text-sm text-gray-600 truncate">
+                              {lastMessage?.message || "No messages"}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(lastMessage?.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          {unread > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center flex-shrink-0 ml-2">
+                              {unread}
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
-                  })}
-                </div>
+                  })
+                )}
+              </div>
 
-                {/* Input */}
-                <form onSubmit={sendMessage} className="p-6 bg-white border-t-2 border-gray-100">
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type your message..."
-                      className="flex-1 border-2 border-gray-200 p-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
-                      disabled={sending}
-                    />
-                    <button
-                      type="submit"
-                      disabled={sending || !newMessage.trim()}
-                      className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg disabled:opacity-50"
-                    >
-                      {sending ? "Sending..." : "Send"}
-                    </button>
+              {/* Chat Area */}
+              <div className="col-span-1 md:col-span-2 flex flex-col h-full">
+                {!selectedCompanyId ? (
+                  <div className="flex-1 flex items-center justify-center text-gray-500 text-sm lg:text-base p-4">
+                    Select a company to view messages
                   </div>
-                </form>
-              </>
-            )}
+                ) : (
+                  <>
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-3 lg:space-y-4 bg-gray-50">
+                      {selectedMessages.map((msg) => {
+                        const isMe = msg.sender_type === "superadmin";
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[85%] lg:max-w-md px-3 lg:px-4 py-2 lg:py-3 rounded-2xl ${
+                                isMe
+                                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
+                                  : "bg-white border-2 border-gray-200 text-gray-800"
+                              }`}
+                            >
+                              <p className="text-xs lg:text-sm font-semibold mb-1">
+                                {isMe ? "You" : msg.company_name}
+                              </p>
+                              <p className="text-xs lg:text-sm whitespace-pre-wrap break-words">
+                                {msg.message}
+                              </p>
+                              <p
+                                className={`text-xs mt-1 ${
+                                  isMe ? "text-white/70" : "text-gray-500"
+                                }`}
+                              >
+                                {new Date(msg.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Input - MOBILE OPTIMIZED */}
+                    <form onSubmit={sendMessage} className="p-3 lg:p-6 bg-white border-t-2 border-gray-100">
+                      <div className="flex gap-2 lg:gap-3">
+                        <input
+                          type="text"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          placeholder="Type your message..."
+                          className="flex-1 border-2 border-gray-200 p-2 lg:p-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm lg:text-base text-gray-800"
+                          disabled={sending}
+                        />
+                        <button
+                          type="submit"
+                          disabled={sending || !newMessage.trim()}
+                          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg disabled:opacity-50 text-sm lg:text-base whitespace-nowrap"
+                        >
+                          {sending ? "..." : "Send"}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

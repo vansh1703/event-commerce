@@ -139,86 +139,88 @@ export default function CompanyMessagesPage() {
 
   return (
     <>
-    <CompanySidebar
+      <CompanySidebar
         companyName={companyUser.company_name}
         companyId={companyUser.id}
       />
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      {/* Main Content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">💬 Messages</h1>
-            <p className="text-gray-600 mt-2">Chat with SuperAdmin</p>
-          </div>
-
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-200">
-            {/* Messages Area */}
-            <div className="h-[60vh] overflow-y-auto p-6 space-y-4 bg-gray-50">
-              {messages.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
-                  No messages yet. Start the conversation!
-                </div>
-              ) : (
-                messages.map((msg) => {
-                  const isMe = msg.sender_type === "company";
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-md px-4 py-3 rounded-2xl ${
-                          isMe
-                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                            : "bg-white border-2 border-gray-200 text-gray-800"
-                        }`}
-                      >
-                        <p className="text-sm font-semibold mb-1">
-                          {isMe ? "You" : "SuperAdmin"}
-                        </p>
-                        <p className="text-sm whitespace-pre-wrap break-words">
-                          {msg.message}
-                        </p>
-                        <p
-                          className={`text-xs mt-1 ${
-                            isMe ? "text-white/70" : "text-gray-500"
-                          }`}
-                        >
-                          {new Date(msg.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        {/* Main Content - PROPER MOBILE SPACING */}
+        <main className="lg:ml-64 pt-20 lg:pt-6 px-4 lg:px-6 pb-4">
+          <div className="max-w-4xl mx-auto">
+            {/* Header - SMALLER ON MOBILE */}
+            <div className="mb-4 lg:mb-6">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">💬 Messages</h1>
+              <p className="text-sm lg:text-base text-gray-600 mt-1">Chat with SuperAdmin</p>
             </div>
 
-            {/* Input Area */}
-            <form onSubmit={sendMessage} className="p-6 bg-white border-t-2 border-gray-100">
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 border-2 border-gray-200 p-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
-                  disabled={sending}
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !newMessage.trim()}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg disabled:opacity-50"
-                >
-                  {sending ? "Sending..." : "Send"}
-                </button>
+            {/* Chat Container - MOBILE FRIENDLY HEIGHT */}
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-200 flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+              {/* Messages Area - FLEXIBLE HEIGHT */}
+              <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-3 lg:space-y-4 bg-gray-50">
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">
+                    No messages yet. Start the conversation!
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isMe = msg.sender_type === "company";
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[85%] lg:max-w-md px-3 lg:px-4 py-2 lg:py-3 rounded-2xl ${
+                            isMe
+                              ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
+                              : "bg-white border-2 border-gray-200 text-gray-800"
+                          }`}
+                        >
+                          <p className="text-xs lg:text-sm font-semibold mb-1">
+                            {isMe ? "You" : "SuperAdmin"}
+                          </p>
+                          <p className="text-xs lg:text-sm whitespace-pre-wrap break-words">
+                            {msg.message}
+                          </p>
+                          <p
+                            className={`text-xs mt-1 ${
+                              isMe ? "text-white/70" : "text-gray-500"
+                            }`}
+                          >
+                            {new Date(msg.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
               </div>
-            </form>
+
+              {/* Input Area - MOBILE OPTIMIZED */}
+              <form onSubmit={sendMessage} className="p-3 lg:p-6 bg-white border-t-2 border-gray-100">
+                <div className="flex gap-2 lg:gap-3">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    className="flex-1 border-2 border-gray-200 p-2 lg:p-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm lg:text-base text-gray-800"
+                    disabled={sending}
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !newMessage.trim()}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg disabled:opacity-50 text-sm lg:text-base whitespace-nowrap"
+                  >
+                    {sending ? "..." : "Send"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
     </>
   );
 }

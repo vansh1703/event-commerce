@@ -16,5 +16,14 @@
     "message": "hi whats your query?",
     "read": true,
     "created_at": "2026-02-21T14:01:24.277Z"
+  },
+  {
+    "id": "f01a53c4-9894-4d0c-978d-cbe652b22c19",
+    "company_id": "7095a307-24f6-4d7d-b02e-c44dd8bb9b38",
+    "company_name": "Test Company for testing",
+    "sender_type": "company",
+    "message": "gu",
+    "read": false,
+    "created_at": "2026-02-21T15:05:14.063Z"
   }
 ]

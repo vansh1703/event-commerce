@@ -1,43 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-import { v4 as uuidv4 } from "uuid";
+import { createClient } from "@supabase/supabase-js";
 
-const MESSAGES_FILE = path.join(process.cwd(), "data", "direct-messages.json");
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
+
 const MESSAGE_RETENTION_DAYS = 7;
 
-// Ensure data directory exists
-const ensureDataDir = () => {
-  const dir = path.join(process.cwd(), "data");
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(MESSAGES_FILE)) {
-    fs.writeFileSync(MESSAGES_FILE, JSON.stringify([]));
-  }
-};
-
-const readMessages = () => {
-  ensureDataDir();
-  const data = fs.readFileSync(MESSAGES_FILE, "utf-8");
-  return JSON.parse(data);
-};
-
-const writeMessages = (messages: any[]) => {
-  ensureDataDir();
-  fs.writeFileSync(MESSAGES_FILE, JSON.stringify(messages, null, 2));
-};
-
 // 🗑️ DELETE MESSAGES OLDER THAN 7 DAYS
-const cleanupOldMessages = (messages: any[]) => {
-  const now = new Date();
-  const retentionMs = MESSAGE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const cleanupOldMessages = async () => {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - MESSAGE_RETENTION_DAYS);
 
-  return messages.filter((msg: any) => {
-    const messageDate = new Date(msg.created_at);
-    const age = now.getTime() - messageDate.getTime();
-    return age < retentionMs;
-  });
+    const { error } = await supabase
+      .from("direct_messages")
+      .delete()
+      .lt("created_at", cutoffDate.toISOString());
+
+    if (error) {
+      console.error("Error cleaning up old messages:", error);
+    }
+  } catch (error) {
+    console.error("Cleanup error:", error);
+  }
 };
 
 // GET messages
@@ -47,23 +39,21 @@ export async function GET(request: NextRequest) {
     const companyId = searchParams.get("companyId");
     const userType = searchParams.get("userType");
 
-    let allMessages = readMessages();
-
-    // 🗑️ AUTO-CLEANUP OLD MESSAGES
-    const cleanedMessages = cleanupOldMessages(allMessages);
-    
-    // Save cleaned messages if any were deleted
-    if (cleanedMessages.length !== allMessages.length) {
-      writeMessages(cleanedMessages);
-      console.log(`🗑️ Deleted ${allMessages.length - cleanedMessages.length} messages older than ${MESSAGE_RETENTION_DAYS} days`);
-    }
-
-    allMessages = cleanedMessages;
+    // Auto-cleanup old messages
+    await cleanupOldMessages();
 
     if (userType === "superadmin") {
+      // SuperAdmin: Get all conversations
+      const { data: messages, error } = await supabase
+        .from("direct_messages")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
       // Group by company
       const groupedMessages: Record<string, any[]> = {};
-      allMessages.forEach((msg: any) => {
+      messages?.forEach((msg) => {
         if (!groupedMessages[msg.company_id]) {
           groupedMessages[msg.company_id] = [];
         }
@@ -75,14 +65,25 @@ export async function GET(request: NextRequest) {
         conversations: groupedMessages,
       });
     } else {
-      // Company messages
-      const messages = allMessages.filter(
-        (msg: any) => msg.company_id === companyId
-      );
+      // Company: Get their messages
+      if (!companyId) {
+        return NextResponse.json(
+          { error: "Company ID is required" },
+          { status: 400 }
+        );
+      }
+
+      const { data: messages, error } = await supabase
+        .from("direct_messages")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
 
       return NextResponse.json({
         success: true,
-        messages: messages,
+        messages: messages || [],
       });
     }
   } catch (error: any) {
@@ -107,27 +108,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let allMessages = readMessages();
+    const { data, error } = await supabase
+      .from("direct_messages")
+      .insert({
+        company_id: companyId,
+        company_name: companyName,
+        sender_type: senderType,
+        message: message.trim(),
+        read: false,
+      })
+      .select()
+      .single();
 
-    // 🗑️ AUTO-CLEANUP OLD MESSAGES BEFORE ADDING NEW ONE
-    allMessages = cleanupOldMessages(allMessages);
-
-    const newMessage = {
-      id: uuidv4(),
-      company_id: companyId,
-      company_name: companyName,
-      sender_type: senderType,
-      message: message.trim(),
-      read: false,
-      created_at: new Date().toISOString(),
-    };
-
-    allMessages.push(newMessage);
-    writeMessages(allMessages);
+    if (error) throw error;
 
     return NextResponse.json({
       success: true,
-      message: newMessage,
+      message: data,
     });
   } catch (error: any) {
     console.error("Error sending message:", error);
@@ -138,36 +135,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH mark messages as read
+// PATCH mark as read
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
     const { companyId, userType } = body;
 
-    let allMessages = readMessages();
+    let query = supabase
+      .from("direct_messages")
+      .update({ read: true })
+      .eq("company_id", companyId)
+      .eq("read", false);
 
-    // 🗑️ AUTO-CLEANUP OLD MESSAGES
-    allMessages = cleanupOldMessages(allMessages);
+    if (userType === "company") {
+      query = query.eq("sender_type", "superadmin");
+    } else if (userType === "superadmin") {
+      query = query.eq("sender_type", "company");
+    }
 
-    const updatedMessages = allMessages.map((msg: any) => {
-      if (msg.company_id === companyId && !msg.read) {
-        if (
-          (userType === "company" && msg.sender_type === "superadmin") ||
-          (userType === "superadmin" && msg.sender_type === "company")
-        ) {
-          return { ...msg, read: true };
-        }
-      }
-      return msg;
-    });
+    const { error } = await query;
+    if (error) throw error;
 
-    writeMessages(updatedMessages);
-
-    return NextResponse.json({
-      success: true,
-    });
+    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Error marking messages as read:", error);
+    console.error("Error marking as read:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
