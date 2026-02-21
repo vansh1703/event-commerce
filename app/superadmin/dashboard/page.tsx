@@ -337,6 +337,7 @@ export default function SuperAdminDashboard() {
               Full platform control & management
             </p>
           </div>
+          <LogoutButton />
           {/* Desktop Menu */}
           {/* <div className="hidden lg:flex items-center gap-2 xl:gap-3">
             <button
@@ -961,5 +962,4 @@ export default function SuperAdminDashboard() {
     </main>
     </>
   );
-  
 }

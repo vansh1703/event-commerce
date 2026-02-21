@@ -155,9 +155,9 @@ export default function SuperAdminSidebar() {
         </nav>
 
         {/* Logout */}
-        <div className="p-6 border-t border-gray-700">
+        {/* <div className="p-6 border-t border-gray-700">
           <LogoutButton />
-        </div>
+        </div> */}
       </aside>
 
       {/* Spacer for content - PREVENTS OVERLAP */}
