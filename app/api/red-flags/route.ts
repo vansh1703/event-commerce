@@ -1,6 +1,44 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { NextRequest } from 'next/server';
 
+// ✅ ADD THIS: GET method to fetch red flags
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const jobId = searchParams.get('jobId');
+    const seekerId = searchParams.get('seekerId');
+
+    let query = supabaseAdmin.from('red_flags').select('*');
+
+    // Filter by jobId if provided
+    if (jobId) {
+      query = query.eq('job_id', jobId);
+    }
+
+    // Filter by seekerId if provided
+    if (seekerId) {
+      query = query.eq('seeker_id', seekerId);
+    }
+
+    const { data: redFlags, error } = await query.order('date', { ascending: false });
+
+    if (error) throw error;
+
+    return NextResponse.json({ 
+      success: true, 
+      redFlags: redFlags || [] 
+    });
+  } catch (error: any) {
+    console.error('Error fetching red flags:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// ✅ EXISTING POST METHOD (keep as is)
 export async function POST(request: Request) {
   try {
     const { seekerId, jobId, jobTitle, reason } = await request.json();

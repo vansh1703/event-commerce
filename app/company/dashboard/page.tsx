@@ -6,6 +6,7 @@ import LogoutButton from "@/components/navbar/LogoutButton";
 import { apiCall } from "@/lib/api";
 import * as XLSX from "xlsx";
 import CompanyFooter from "@/components/CompanyFooter";
+import CompanySidebar from "@/components/CompanySidebar";
 
 type JobRequest = {
   id: string;
@@ -92,7 +93,8 @@ export default function CompanyDashboard() {
   const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
 
-  const [selectedCandidate, setSelectedCandidate] = useState<Application | null>(null);
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<Application | null>(null);
   const [showCandidateModal, setShowCandidateModal] = useState(false);
   const [seekerStats, setSeekerStats] = useState<SeekerStats | null>(null);
 
@@ -103,7 +105,9 @@ export default function CompanyDashboard() {
   const [jobSearchTerm, setJobSearchTerm] = useState("");
   const [jobEventTypeFilter, setJobEventTypeFilter] = useState("all");
   const [candidateSearchTerm, setCandidateSearchTerm] = useState("");
-  const [selectedJobForCandidates, setSelectedJobForCandidates] = useState<string | null>(null);
+  const [selectedJobForCandidates, setSelectedJobForCandidates] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     checkAuth();
@@ -142,20 +146,24 @@ export default function CompanyDashboard() {
       const requestsData = await apiCall("/job-requests", { method: "GET" });
       if (requestsData.success) {
         const myReqs = requestsData.jobRequests.filter(
-          (req: JobRequest) => req.company_id === companyId
+          (req: JobRequest) => req.company_id === companyId,
         );
         setMyRequests(myReqs);
       }
 
       const jobsData = await apiCall("/jobs", { method: "GET" });
       if (jobsData.success) {
-        const myJobs = jobsData.jobs.filter((job: Job) => job.company_id === companyId);
+        const myJobs = jobsData.jobs.filter(
+          (job: Job) => job.company_id === companyId,
+        );
 
         const active = myJobs.filter(
-          (job: Job) => !job.completed && new Date(job.event_end_date) >= new Date()
+          (job: Job) =>
+            !job.completed && new Date(job.event_end_date) >= new Date(),
         );
         const completed = myJobs.filter(
-          (job: Job) => job.completed || new Date(job.event_end_date) < new Date()
+          (job: Job) =>
+            job.completed || new Date(job.event_end_date) < new Date(),
         );
 
         setApprovedJobs(active);
@@ -182,13 +190,15 @@ export default function CompanyDashboard() {
         (job) =>
           job.title.toLowerCase().includes(jobSearchTerm.toLowerCase()) ||
           job.location.toLowerCase().includes(jobSearchTerm.toLowerCase()) ||
-          job.event_type.toLowerCase().includes(jobSearchTerm.toLowerCase())
+          job.event_type.toLowerCase().includes(jobSearchTerm.toLowerCase()),
       );
     }
 
     // Event type filter
     if (jobEventTypeFilter !== "all") {
-      filtered = filtered.filter((job) => job.event_type === jobEventTypeFilter);
+      filtered = filtered.filter(
+        (job) => job.event_type === jobEventTypeFilter,
+      );
     }
 
     setFilteredJobs(filtered);
@@ -202,7 +212,7 @@ export default function CompanyDashboard() {
 
   const getFilteredCandidates = (jobId: string) => {
     let candidates = applications.filter(
-      (app) => app.job_id === jobId && app.status === "accepted"
+      (app) => app.job_id === jobId && app.status === "accepted",
     );
 
     if (candidateSearchTerm && selectedJobForCandidates === jobId) {
@@ -210,7 +220,7 @@ export default function CompanyDashboard() {
         (app) =>
           app.name.toLowerCase().includes(candidateSearchTerm.toLowerCase()) ||
           app.city.toLowerCase().includes(candidateSearchTerm.toLowerCase()) ||
-          app.phone.includes(candidateSearchTerm)
+          app.phone.includes(candidateSearchTerm),
       );
     }
 
@@ -237,7 +247,7 @@ export default function CompanyDashboard() {
 
   const exportCandidates = async (jobId: string, jobTitle: string) => {
     const acceptedCandidates = applications.filter(
-      (app) => app.job_id === jobId && app.status === "accepted"
+      (app) => app.job_id === jobId && app.status === "accepted",
     );
 
     if (acceptedCandidates.length === 0) {
@@ -295,13 +305,23 @@ export default function CompanyDashboard() {
   };
 
   const getInitials = (name: string) => {
-    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
-  const totalActiveJobsPages = Math.ceil(filteredJobs.length / ACTIVE_JOBS_PER_PAGE);
+  const totalActiveJobsPages = Math.ceil(
+    filteredJobs.length / ACTIVE_JOBS_PER_PAGE,
+  );
   const activeJobsStartIndex = (activeJobsPage - 1) * ACTIVE_JOBS_PER_PAGE;
   const activeJobsEndIndex = activeJobsStartIndex + ACTIVE_JOBS_PER_PAGE;
-  const currentActiveJobs = filteredJobs.slice(activeJobsStartIndex, activeJobsEndIndex);
+  const currentActiveJobs = filteredJobs.slice(
+    activeJobsStartIndex,
+    activeJobsEndIndex,
+  );
 
   if (loading) {
     return (
@@ -315,509 +335,615 @@ export default function CompanyDashboard() {
   }
 
   const pendingRequests = myRequests.filter((req) => req.status === "pending");
-  const rejectedRequests = myRequests.filter((req) => req.status === "rejected");
+  const rejectedRequests = myRequests.filter(
+    (req) => req.status === "rejected",
+  );
+
+  if (!companyUser) return null;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {companyUser?.company_name || "Company"} Dashboard
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Welcome back! Manage your job postings and candidates.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push("/company/submit-request")}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
-          >
-            + Submit Job Request
-          </button>
-          <LogoutButton />
-        </div>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-yellow-100 border-2 border-yellow-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-yellow-700">{pendingRequests.length}</p>
-          <p className="text-yellow-600 font-semibold">Pending Approval</p>
-        </div>
-        <div className="bg-green-100 border-2 border-green-300 rounded-2xl p-4 text-center">
-          <p className="text-3xl font-bold text-green-700">{approvedJobs.length}</p>
-          <p className="text-green-600 font-semibold">Active Jobs</p>
-        </div>
-        <div
-          className="bg-red-100 border-2 border-red-300 rounded-2xl p-4 text-center hover:shadow-lg transition-all cursor-pointer"
-          onClick={() => router.push("/company/rejected-requests")}
-        >
-          <p className="text-3xl font-bold text-red-700">{rejectedRequests.length}</p>
-          <p className="text-red-600 font-semibold">Rejected Requests →</p>
-        </div>
-        <div
-          className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center hover:shadow-lg transition-all cursor-pointer"
-          onClick={() => router.push("/company/event-history")}
-        >
-          <p className="text-3xl font-bold text-purple-700">{completedJobs.length}</p>
-          <p className="text-purple-600 font-semibold">Event History →</p>
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Pending Requests */}
-        {pendingRequests.length > 0 && (
+    <>
+    <CompanySidebar
+        companyName={companyUser.company_name}
+        companyId={companyUser.id}
+    />
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      
+      <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10">
+        {/* Header */}
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              ⏳ Pending Admin Approval ({pendingRequests.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pendingRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className="bg-white rounded-3xl shadow-lg p-6 border-2 border-yellow-200"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">{req.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {req.event_type} • {req.location}
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              {companyUser?.company_name || "Company"} Dashboard
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Welcome back! Manage your job postings and candidates.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/company/submit-request")}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
+            >
+              + Submit Job Request
+            </button>
+
+            <LogoutButton />
+          </div>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-yellow-100 border-2 border-yellow-300 rounded-2xl p-4 text-center">
+            <p className="text-3xl font-bold text-yellow-700">
+              {pendingRequests.length}
+            </p>
+            <p className="text-yellow-600 font-semibold">Pending Approval</p>
+          </div>
+          <div className="bg-green-100 border-2 border-green-300 rounded-2xl p-4 text-center">
+            <p className="text-3xl font-bold text-green-700">
+              {approvedJobs.length}
+            </p>
+            <p className="text-green-600 font-semibold">Active Jobs</p>
+          </div>
+          <div
+            className="bg-red-100 border-2 border-red-300 rounded-2xl p-4 text-center hover:shadow-lg transition-all cursor-pointer"
+            onClick={() => router.push("/company/rejected-requests")}
+          >
+            <p className="text-3xl font-bold text-red-700">
+              {rejectedRequests.length}
+            </p>
+            <p className="text-red-600 font-semibold">Rejected Requests →</p>
+          </div>
+          <div
+            className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-4 text-center hover:shadow-lg transition-all cursor-pointer"
+            onClick={() => router.push("/company/event-history")}
+          >
+            <p className="text-3xl font-bold text-purple-700">
+              {completedJobs.length}
+            </p>
+            <p className="text-purple-600 font-semibold">Event History →</p>
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Pending Requests */}
+          {pendingRequests.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                ⏳ Pending Admin Approval ({pendingRequests.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="bg-white rounded-3xl shadow-lg p-6 border-2 border-yellow-200"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800">
+                          {req.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {req.event_type} • {req.location}
+                        </p>
+                      </div>
+                      <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        PENDING
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <p>
+                        📅 {req.event_date} at {req.event_time}
+                      </p>
+                      <p>👥 {req.helpers_needed} helpers needed</p>
+                      <p className="text-xs text-gray-500">
+                        Submitted: {req.submitted_at}
                       </p>
                     </div>
-                    <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
-                      PENDING
-                    </span>
                   </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p>📅 {req.event_date} at {req.event_time}</p>
-                    <p>👥 {req.helpers_needed} helpers needed</p>
-                    <p className="text-xs text-gray-500">Submitted: {req.submitted_at}</p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active Jobs with Search & Filter */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              🎯 Active Jobs & Accepted Candidates ({approvedJobs.length})
+            </h2>
+
+            {/* Search & Filter */}
+            {approvedJobs.length > 0 && (
+              <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">
+                  🔍 Search & Filter Jobs
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Search by Title or Location
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Search jobs..."
+                      value={jobSearchTerm}
+                      onChange={(e) => setJobSearchTerm(e.target.value)}
+                      className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Event Type
+                    </label>
+                    <select
+                      value={jobEventTypeFilter}
+                      onChange={(e) => setJobEventTypeFilter(e.target.value)}
+                      className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
+                    >
+                      <option value="all">All Event Types</option>
+                      {getJobEventTypes().map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-              ))}
+
+                <div className="mt-4 text-sm text-gray-600">
+                  Showing {filteredJobs.length} of {approvedJobs.length} jobs
+                </div>
+              </div>
+            )}
+
+            {filteredJobs.length === 0 ? (
+              <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
+                <p className="text-gray-500 mb-4">
+                  {jobSearchTerm || jobEventTypeFilter !== "all"
+                    ? "No jobs match your filters."
+                    : "No approved jobs yet. Submit a job request to get started!"}
+                </p>
+                {!jobSearchTerm && jobEventTypeFilter === "all" && (
+                  <button
+                    onClick={() => router.push("/company/submit-request")}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
+                  >
+                    Submit Job Request
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="space-y-6">
+                  {currentActiveJobs.map((job) => {
+                    const jobApplicants = applications.filter(
+                      (app) => app.job_id === job.id,
+                    );
+                    const acceptedCandidates = getFilteredCandidates(job.id);
+                    const allAcceptedCount = jobApplicants.filter(
+                      (app) => app.status === "accepted",
+                    ).length;
+                    const pendingCandidates = jobApplicants.filter(
+                      (app) => app.status === "pending",
+                    );
+
+                    return (
+                      <div
+                        key={job.id}
+                        className="bg-white rounded-3xl shadow-xl p-6 border border-gray-400"
+                      >
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                          <div className="flex-1">
+                            <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                              {job.title}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {job.event_type} • {job.location} • 📅{" "}
+                              {job.event_start_date === job.event_end_date
+                                ? `${job.event_start_date} at ${job.event_start_time}`
+                                : `${job.event_start_date} to ${job.event_end_date}, ${job.event_start_time} - ${job.event_end_time}`}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={() =>
+                                router.push(`/company/applicants/${job.id}`)
+                              }
+                              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+                            >
+                              👥 View Applicants
+                            </button>
+
+                            {allAcceptedCount > 0 && (
+                              <button
+                                onClick={() =>
+                                  exportCandidates(job.id, job.title)
+                                }
+                                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
+                              >
+                                📊 Export Excel
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3 flex-wrap mb-4">
+                          <div className="bg-green-50 border border-green-200 px-4 py-2 rounded-full">
+                            <span className="text-green-700 font-semibold text-sm">
+                              ✓ {allAcceptedCount} Accepted
+                            </span>
+                          </div>
+                          <div className="bg-yellow-50 border border-yellow-200 px-4 py-2 rounded-full">
+                            <span className="text-yellow-700 font-semibold text-sm">
+                              ⏳ {pendingCandidates.length} Pending Admin Review
+                            </span>
+                          </div>
+                          <div className="bg-blue-50 border border-blue-200 px-4 py-2 rounded-full">
+                            <span className="text-blue-700 font-semibold text-sm">
+                              📋 {jobApplicants.length} Total Applications
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Accepted Candidates Section with Search */}
+                        {allAcceptedCount > 0 && (
+                          <div className="mt-4 pt-4 border-t-2 border-gray-200">
+                            <div className="flex justify-between items-center mb-4">
+                              <h4 className="text-lg font-bold text-gray-800">
+                                ✓ Accepted Candidates ({allAcceptedCount})
+                              </h4>
+                              <button
+                                onClick={() => {
+                                  if (selectedJobForCandidates === job.id) {
+                                    setSelectedJobForCandidates(null);
+                                    setCandidateSearchTerm("");
+                                  } else {
+                                    setSelectedJobForCandidates(job.id);
+                                  }
+                                }}
+                                className="text-indigo-600 hover:text-purple-600 font-semibold text-sm"
+                              >
+                                {selectedJobForCandidates === job.id
+                                  ? "Hide Search"
+                                  : "🔍 Search"}
+                              </button>
+                            </div>
+
+                            {selectedJobForCandidates === job.id && (
+                              <div className="mb-4">
+                                <input
+                                  type="text"
+                                  placeholder="Search by name, city, or phone..."
+                                  value={candidateSearchTerm}
+                                  onChange={(e) =>
+                                    setCandidateSearchTerm(e.target.value)
+                                  }
+                                  className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-800"
+                                />
+                                <p className="text-sm text-gray-600 mt-2">
+                                  Showing {acceptedCandidates.length} of{" "}
+                                  {allAcceptedCount} candidates
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {acceptedCandidates
+                                .slice(0, 6)
+                                .map((candidate) => (
+                                  <div
+                                    key={candidate.id}
+                                    onClick={() =>
+                                      openCandidateModal(candidate)
+                                    }
+                                    className="bg-green-50 rounded-2xl p-3 border border-green-200 hover:shadow-lg transition-all cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+                                        {getInitials(candidate.name)}
+                                      </div>
+                                      <div className="flex-1">
+                                        <h5 className="font-bold text-gray-800 text-sm">
+                                          {candidate.name}
+                                        </h5>
+                                        <p className="text-xs text-gray-600">
+                                          {candidate.city}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-gray-600">
+                                      📱 {candidate.phone}
+                                    </p>
+                                  </div>
+                                ))}
+                            </div>
+
+                            {allAcceptedCount > 6 && (
+                              <button
+                                onClick={() =>
+                                  router.push(`/company/applicants/${job.id}`)
+                                }
+                                className="mt-3 text-indigo-600 hover:text-purple-600 font-semibold text-sm"
+                              >
+                                View all {allAcceptedCount} candidates →
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination for Active Jobs */}
+                {totalActiveJobsPages > 1 && (
+                  <div className="mt-8 flex justify-center items-center gap-2">
+                    <button
+                      onClick={() =>
+                        setActiveJobsPage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={activeJobsPage === 1}
+                      className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      ← Previous
+                    </button>
+
+                    <div className="flex gap-2">
+                      {Array.from(
+                        { length: totalActiveJobsPages },
+                        (_, i) => i + 1,
+                      ).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setActiveJobsPage(page)}
+                          className={`w-10 h-10 rounded-xl font-semibold transition-all ${
+                            activeJobsPage === page
+                              ? "bg-indigo-600 text-white"
+                              : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        setActiveJobsPage((prev) =>
+                          Math.min(totalActiveJobsPages, prev + 1),
+                        )
+                      }
+                      disabled={activeJobsPage === totalActiveJobsPages}
+                      className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Candidate Detail Modal - SAME AS BEFORE */}
+        {showCandidateModal && selectedCandidate && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowCandidateModal(false)}
+          >
+            <div
+              className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-6 mb-6">
+                {seekerStats?.seekerInfo?.profile_photo ? (
+                  <img
+                    src={seekerStats.seekerInfo.profile_photo}
+                    alt={selectedCandidate.name}
+                    onClick={() => {
+                      setSelectedPhoto(seekerStats.seekerInfo!.profile_photo);
+                      setShowPhotoModal(true);
+                    }}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-green-200 shadow-lg flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg flex-shrink-0">
+                    {getInitials(selectedCandidate.name)}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                    {selectedCandidate.name}
+                  </h2>
+                  <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg inline-block">
+                    ✓ Accepted by Admin
+                  </span>
+
+                  {seekerStats && (
+                    <div className="flex gap-3 mt-3 flex-wrap">
+                      <span className="text-sm flex items-center gap-1">
+                        ⭐{" "}
+                        <span className="font-semibold">
+                          {Number(seekerStats.avgRating) > 0
+                            ? seekerStats.avgRating
+                            : "No ratings"}
+                        </span>
+                      </span>
+                      <span
+                        className={`text-sm flex items-center gap-1 ${
+                          seekerStats.redFlagCount > 0
+                            ? "text-red-600 font-semibold"
+                            : ""
+                        }`}
+                      >
+                        🚩 <span>{seekerStats.redFlagCount} Red Flags</span>
+                      </span>
+                      {seekerStats.isBanned && (
+                        <span className="text-red-600 font-bold text-sm">
+                          🚫 BANNED
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {seekerStats?.seekerInfo?.id_proof_photo && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    🆔 ID Proof Document
+                  </h3>
+                  <div className="bg-gray-50 rounded-2xl p-4 border-2 border-green-200">
+                    <img
+                      src={seekerStats.seekerInfo.id_proof_photo}
+                      alt="ID Proof"
+                      onClick={() => {
+                        setSelectedPhoto(
+                          seekerStats.seekerInfo!.id_proof_photo,
+                        );
+                        setShowPhotoModal(true);
+                      }}
+                      className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                    />
+                    <p className="text-green-600 text-sm font-semibold mt-2">
+                      🔍 Click image to enlarge
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-gray-50 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 mb-1">Phone</p>
+                  <p className="font-semibold text-gray-800">
+                    📱 {selectedCandidate.phone}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 mb-1">Age</p>
+                  <p className="font-semibold text-gray-800">
+                    {selectedCandidate.age} years
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 mb-1">City</p>
+                  <p className="font-semibold text-gray-800">
+                    📍 {selectedCandidate.city}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4">
+                  <p className="text-sm text-gray-500 mb-1">Availability</p>
+                  <p className="font-semibold text-gray-800">
+                    ⏰ {selectedCandidate.availability}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-4 mb-6">
+                <p className="text-sm text-gray-500 mb-1">Experience</p>
+                <p className="text-gray-800">{selectedCandidate.experience}</p>
+              </div>
+
+              <p className="text-sm text-gray-500 mb-6">
+                Applied on:{" "}
+                {new Date(selectedCandidate.applied_at).toLocaleDateString()}
+              </p>
+
+              {seekerStats &&
+                seekerStats.redFlags &&
+                seekerStats.redFlags.length > 0 && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6">
+                    <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2">
+                      🚩 Red Flags ({seekerStats.redFlags.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {seekerStats.redFlags.map((flag, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white rounded-lg p-3 border border-red-200"
+                        >
+                          <p className="text-sm font-semibold text-red-700">
+                            {flag.job_title}
+                          </p>
+                          <p className="text-sm text-red-600">{flag.reason}</p>
+                          <p className="text-xs text-red-500 mt-1">
+                            {flag.date}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {seekerStats &&
+                seekerStats.ratings &&
+                seekerStats.ratings.length > 0 && (
+                  <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-6">
+                    <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
+                      ⭐ Previous Ratings ({seekerStats.ratings.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {seekerStats.ratings.map((rating, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white rounded-lg p-3 border border-yellow-200"
+                        >
+                          <p className="text-sm font-semibold text-yellow-700">
+                            {rating.job_title}
+                          </p>
+                          <p className="text-sm text-yellow-600">
+                            {"⭐".repeat(rating.stars)} ({rating.stars}/5)
+                          </p>
+                          <p className="text-xs text-yellow-500 mt-1">
+                            {rating.date}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              <button
+                onClick={() => setShowCandidateModal(false)}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg"
+              >
+                Close
+              </button>
             </div>
           </div>
         )}
 
-        {/* Active Jobs with Search & Filter */}
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            🎯 Active Jobs & Accepted Candidates ({approvedJobs.length})
-          </h2>
-
-          {/* Search & Filter */}
-          {approvedJobs.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">🔍 Search & Filter Jobs</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search by Title or Location
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Search jobs..."
-                    value={jobSearchTerm}
-                    onChange={(e) => setJobSearchTerm(e.target.value)}
-                    className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Event Type
-                  </label>
-                  <select
-                    value={jobEventTypeFilter}
-                    onChange={(e) => setJobEventTypeFilter(e.target.value)}
-                    className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-800"
-                  >
-                    <option value="all">All Event Types</option>
-                    {getJobEventTypes().map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-4 text-sm text-gray-600">
-                Showing {filteredJobs.length} of {approvedJobs.length} jobs
-              </div>
-            </div>
-          )}
-
-          {filteredJobs.length === 0 ? (
-            <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-              <p className="text-gray-500 mb-4">
-                {jobSearchTerm || jobEventTypeFilter !== "all"
-                  ? "No jobs match your filters."
-                  : "No approved jobs yet. Submit a job request to get started!"}
-              </p>
-              {!jobSearchTerm && jobEventTypeFilter === "all" && (
-                <button
-                  onClick={() => router.push("/company/submit-request")}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg"
-                >
-                  Submit Job Request
-                </button>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="space-y-6">
-                {currentActiveJobs.map((job) => {
-                  const jobApplicants = applications.filter((app) => app.job_id === job.id);
-                  const acceptedCandidates = getFilteredCandidates(job.id);
-                  const allAcceptedCount = jobApplicants.filter(
-                    (app) => app.status === "accepted"
-                  ).length;
-                  const pendingCandidates = jobApplicants.filter(
-                    (app) => app.status === "pending"
-                  );
-
-                  return (
-                    <div key={job.id} className="bg-white rounded-3xl shadow-xl p-6 border border-gray-400">
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                        <div className="flex-1">
-                          <h3 className="text-2xl font-bold text-gray-800 mb-2">{job.title}</h3>
-                          <p className="text-sm text-gray-600">
-                            {job.event_type} • {job.location} • 📅{" "}
-                            {job.event_start_date === job.event_end_date
-                              ? `${job.event_start_date} at ${job.event_start_time}`
-                              : `${job.event_start_date} to ${job.event_end_date}, ${job.event_start_time} - ${job.event_end_time}`}
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2 flex-wrap">
-                          <button
-                            onClick={() => router.push(`/company/applicants/${job.id}`)}
-                            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
-                          >
-                            👥 View Applicants
-                          </button>
-
-                          {allAcceptedCount > 0 && (
-                            <button
-                              onClick={() => exportCandidates(job.id, job.title)}
-                              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg flex items-center gap-2"
-                            >
-                              📊 Export Excel
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3 flex-wrap mb-4">
-                        <div className="bg-green-50 border border-green-200 px-4 py-2 rounded-full">
-                          <span className="text-green-700 font-semibold text-sm">
-                            ✓ {allAcceptedCount} Accepted
-                          </span>
-                        </div>
-                        <div className="bg-yellow-50 border border-yellow-200 px-4 py-2 rounded-full">
-                          <span className="text-yellow-700 font-semibold text-sm">
-                            ⏳ {pendingCandidates.length} Pending Admin Review
-                          </span>
-                        </div>
-                        <div className="bg-blue-50 border border-blue-200 px-4 py-2 rounded-full">
-                          <span className="text-blue-700 font-semibold text-sm">
-                            📋 {jobApplicants.length} Total Applications
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Accepted Candidates Section with Search */}
-                      {allAcceptedCount > 0 && (
-                        <div className="mt-4 pt-4 border-t-2 border-gray-200">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-lg font-bold text-gray-800">
-                              ✓ Accepted Candidates ({allAcceptedCount})
-                            </h4>
-                            <button
-                              onClick={() => {
-                                if (selectedJobForCandidates === job.id) {
-                                  setSelectedJobForCandidates(null);
-                                  setCandidateSearchTerm("");
-                                } else {
-                                  setSelectedJobForCandidates(job.id);
-                                }
-                              }}
-                              className="text-indigo-600 hover:text-purple-600 font-semibold text-sm"
-                            >
-                              {selectedJobForCandidates === job.id ? "Hide Search" : "🔍 Search"}
-                            </button>
-                          </div>
-
-                          {selectedJobForCandidates === job.id && (
-                            <div className="mb-4">
-                              <input
-                                type="text"
-                                placeholder="Search by name, city, or phone..."
-                                value={candidateSearchTerm}
-                                onChange={(e) => setCandidateSearchTerm(e.target.value)}
-                                className="w-full border-2 border-gray-200 p-3 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-800"
-                              />
-                              <p className="text-sm text-gray-600 mt-2">
-                                Showing {acceptedCandidates.length} of {allAcceptedCount} candidates
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            {acceptedCandidates.slice(0, 6).map((candidate) => (
-                              <div
-                                key={candidate.id}
-                                onClick={() => openCandidateModal(candidate)}
-                                className="bg-green-50 rounded-2xl p-3 border border-green-200 hover:shadow-lg transition-all cursor-pointer"
-                              >
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-                                    {getInitials(candidate.name)}
-                                  </div>
-                                  <div className="flex-1">
-                                    <h5 className="font-bold text-gray-800 text-sm">{candidate.name}</h5>
-                                    <p className="text-xs text-gray-600">{candidate.city}</p>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-gray-600">📱 {candidate.phone}</p>
-                              </div>
-                            ))}
-                          </div>
-
-                          {allAcceptedCount > 6 && (
-                            <button
-                              onClick={() => router.push(`/company/applicants/${job.id}`)}
-                              className="mt-3 text-indigo-600 hover:text-purple-600 font-semibold text-sm"
-                            >
-                              View all {allAcceptedCount} candidates →
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Pagination for Active Jobs */}
-              {totalActiveJobsPages > 1 && (
-                <div className="mt-8 flex justify-center items-center gap-2">
-                  <button
-                    onClick={() => setActiveJobsPage((prev) => Math.max(1, prev - 1))}
-                    disabled={activeJobsPage === 1}
-                    className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    ← Previous
-                  </button>
-
-                  <div className="flex gap-2">
-                    {Array.from({ length: totalActiveJobsPages }, (_, i) => i + 1).map((page) => (
-                      <button
-                        key={page}
-                        onClick={() => setActiveJobsPage(page)}
-                        className={`w-10 h-10 rounded-xl font-semibold transition-all ${
-                          activeJobsPage === page
-                            ? "bg-indigo-600 text-white"
-                            : "bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => setActiveJobsPage((prev) => Math.min(totalActiveJobsPages, prev + 1))}
-                    disabled={activeJobsPage === totalActiveJobsPages}
-                    className="px-4 py-2 bg-white rounded-xl border-2 border-indigo-200 text-indigo-600 font-semibold hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Candidate Detail Modal - SAME AS BEFORE */}
-      {showCandidateModal && selectedCandidate && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowCandidateModal(false)}
-        >
+        {/* Photo Enlarge Modal */}
+        {showPhotoModal && (
           <div
-            className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4"
+            onClick={() => setShowPhotoModal(false)}
           >
-            <div className="flex items-start gap-6 mb-6">
-              {seekerStats?.seekerInfo?.profile_photo ? (
-                <img
-                  src={seekerStats.seekerInfo.profile_photo}
-                  alt={selectedCandidate.name}
-                  onClick={() => {
-                    setSelectedPhoto(seekerStats.seekerInfo!.profile_photo);
-                    setShowPhotoModal(true);
-                  }}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-green-200 shadow-lg flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg flex-shrink-0">
-                  {getInitials(selectedCandidate.name)}
-                </div>
-              )}
-              <div className="flex-1">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">{selectedCandidate.name}</h2>
-                <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg inline-block">
-                  ✓ Accepted by Admin
-                </span>
-
-                {seekerStats && (
-                  <div className="flex gap-3 mt-3 flex-wrap">
-                    <span className="text-sm flex items-center gap-1">
-                      ⭐{" "}
-                      <span className="font-semibold">
-                        {Number(seekerStats.avgRating) > 0 ? seekerStats.avgRating : "No ratings"}
-                      </span>
-                    </span>
-                    <span
-                      className={`text-sm flex items-center gap-1 ${
-                        seekerStats.redFlagCount > 0 ? "text-red-600 font-semibold" : ""
-                      }`}
-                    >
-                      🚩 <span>{seekerStats.redFlagCount} Red Flags</span>
-                    </span>
-                    {seekerStats.isBanned && (
-                      <span className="text-red-600 font-bold text-sm">🚫 BANNED</span>
-                    )}
-                  </div>
-                )}
-              </div>
+            <div className="relative max-w-6xl max-h-[90vh]">
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="absolute -top-12 right-0 text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold"
+              >
+                ✕ Close
+              </button>
+              <img
+                src={selectedPhoto}
+                alt="Enlarged"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
             </div>
-
-            {seekerStats?.seekerInfo?.id_proof_photo && (
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  🆔 ID Proof Document
-                </h3>
-                <div className="bg-gray-50 rounded-2xl p-4 border-2 border-green-200">
-                  <img
-                    src={seekerStats.seekerInfo.id_proof_photo}
-                    alt="ID Proof"
-                    onClick={() => {
-                      setSelectedPhoto(seekerStats.seekerInfo!.id_proof_photo);
-                      setShowPhotoModal(true);
-                    }}
-                    className="w-full max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                  />
-                  <p className="text-green-600 text-sm font-semibold mt-2">🔍 Click image to enlarge</p>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 mb-1">Phone</p>
-                <p className="font-semibold text-gray-800">📱 {selectedCandidate.phone}</p>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 mb-1">Age</p>
-                <p className="font-semibold text-gray-800">{selectedCandidate.age} years</p>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 mb-1">City</p>
-                <p className="font-semibold text-gray-800">📍 {selectedCandidate.city}</p>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-sm text-gray-500 mb-1">Availability</p>
-                <p className="font-semibold text-gray-800">⏰ {selectedCandidate.availability}</p>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-              <p className="text-sm text-gray-500 mb-1">Experience</p>
-              <p className="text-gray-800">{selectedCandidate.experience}</p>
-            </div>
-
-            <p className="text-sm text-gray-500 mb-6">
-              Applied on: {new Date(selectedCandidate.applied_at).toLocaleDateString()}
-            </p>
-
-            {seekerStats && seekerStats.redFlags && seekerStats.redFlags.length > 0 && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6">
-                <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2">
-                  🚩 Red Flags ({seekerStats.redFlags.length})
-                </h3>
-                <div className="space-y-2">
-                  {seekerStats.redFlags.map((flag, idx) => (
-                    <div key={idx} className="bg-white rounded-lg p-3 border border-red-200">
-                      <p className="text-sm font-semibold text-red-700">{flag.job_title}</p>
-                      <p className="text-sm text-red-600">{flag.reason}</p>
-                      <p className="text-xs text-red-500 mt-1">{flag.date}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {seekerStats && seekerStats.ratings && seekerStats.ratings.length > 0 && (
-              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-6">
-                <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
-                  ⭐ Previous Ratings ({seekerStats.ratings.length})
-                </h3>
-                <div className="space-y-2">
-                  {seekerStats.ratings.map((rating, idx) => (
-                    <div key={idx} className="bg-white rounded-lg p-3 border border-yellow-200">
-                      <p className="text-sm font-semibold text-yellow-700">{rating.job_title}</p>
-                      <p className="text-sm text-yellow-600">
-                        {"⭐".repeat(rating.stars)} ({rating.stars}/5)
-                      </p>
-                      <p className="text-xs text-yellow-500 mt-1">{rating.date}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={() => setShowCandidateModal(false)}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg"
-            >
-              Close
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Photo Enlarge Modal */}
-      {showPhotoModal && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[70] p-4"
-          onClick={() => setShowPhotoModal(false)}
-        >
-          <div className="relative max-w-6xl max-h-[90vh]">
-            <button
-              onClick={() => setShowPhotoModal(false)}
-              className="absolute -top-12 right-0 text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold"
-            >
-              ✕ Close
-            </button>
-            <img
-              src={selectedPhoto}
-              alt="Enlarged"
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
-
-      <CompanyFooter />
-    </main>
+        <CompanyFooter />
+      </main>
+    </div>
+    </>
   );
 }

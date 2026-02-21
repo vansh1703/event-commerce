@@ -1,0 +1,20 @@
+[
+  {
+    "id": "b1766e3f-a45c-4212-bea9-309072222b1e",
+    "company_id": "7095a307-24f6-4d7d-b02e-c44dd8bb9b38",
+    "company_name": "Test Company for testing",
+    "sender_type": "company",
+    "message": "hi",
+    "read": true,
+    "created_at": "2026-02-21T13:59:22.128Z"
+  },
+  {
+    "id": "18cea753-438e-4fb7-bb8e-94ac1a51fad3",
+    "company_id": "7095a307-24f6-4d7d-b02e-c44dd8bb9b38",
+    "company_name": "Test Company for testing",
+    "sender_type": "superadmin",
+    "message": "hi whats your query?",
+    "read": true,
+    "created_at": "2026-02-21T14:01:24.277Z"
+  }
+]
