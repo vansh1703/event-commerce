@@ -323,7 +323,7 @@ export default function SuperAdminDashboard() {
   return (
     <>
     <SuperAdminSidebar />
-    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-6 md:py-10 mt-1">
+    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-4 md:px-6 py-7 md:py-10 mt-1">
       
       {/* Header */}
       <div className="max-w-6xl mx-auto mb-10">
