@@ -1,18 +1,20 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LogoutButton from "./navbar/LogoutButton";
+import { apiCall } from "@/lib/api";
 
 export default function SuperAdminSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const navItems = [
     { icon: "🏠", label: "Dashboard", path: "/superadmin/dashboard" },
-    { icon: "💬", label: "Messages", path: "/superadmin/messages" },
+    { icon: "💬", label: "Messages", path: "/superadmin/messages", showBadge: true },
     { icon: "📋", label: "All Requests", path: "/superadmin/all-requests" },
     { icon: "➕", label: "Create Company", path: "/superadmin/create-company" },
     { icon: "🏢", label: "Edit Companies", path: "/superadmin/edit-companies", protected: true },
@@ -20,6 +22,34 @@ export default function SuperAdminSidebar() {
   ];
 
   const isActive = (path: string) => pathname === path;
+
+  // Load unread message count
+  useEffect(() => {
+    loadUnreadCount();
+    // Poll every 30 seconds
+    const interval = setInterval(() => loadUnreadCount(), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadUnreadCount = async () => {
+    try {
+      const data = await apiCall("/direct-messages?userType=superadmin", {
+        method: "GET",
+      });
+
+      if (data.success) {
+        let totalUnread = 0;
+        Object.values(data.conversations || {}).forEach((messages: any) => {
+          totalUnread += messages.filter(
+            (msg: any) => !msg.read && msg.sender_type === "company"
+          ).length;
+        });
+        setUnreadCount(totalUnread);
+      }
+    } catch (error) {
+      console.error("Error loading unread count:", error);
+    }
+  };
 
   const handleProtectedRoute = (path: string) => {
     const password = prompt("Enter SuperAdmin password:");
@@ -44,7 +74,7 @@ export default function SuperAdminSidebar() {
           </div>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-lg hover:bg-gray-700 text-gray-300 transition-all"
+            className="p-2 rounded-lg hover:bg-gray-700 text-gray-300 transition-all relative"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isMobileMenuOpen ? (
@@ -53,6 +83,11 @@ export default function SuperAdminSidebar() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               )}
             </svg>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -71,7 +106,7 @@ export default function SuperAdminSidebar() {
                       setIsMobileMenuOpen(false);
                     }
                   }}
-                  className={`w-full px-4 py-3 flex items-center gap-3 transition-all ${
+                  className={`w-full px-4 py-3 flex items-center gap-3 transition-all relative ${
                     isActive(item.path)
                       ? "bg-indigo-600 text-white border-l-4 border-indigo-400"
                       : "text-gray-300 hover:bg-gray-800"
@@ -80,6 +115,11 @@ export default function SuperAdminSidebar() {
                   <span className="text-xl">{item.icon}</span>
                   <span className="font-medium">{item.label}</span>
                   {item.protected && <span className="text-xs text-red-400">🔒</span>}
+                  {item.showBadge && unreadCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1 animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
               ))}
               <div className="px-4 py-3 border-t border-gray-700">
@@ -136,28 +176,35 @@ export default function SuperAdminSidebar() {
                   router.push(item.path);
                 }
               }}
-              className={`w-full px-6 py-3 flex items-center gap-3 transition-all ${
+              className={`w-full px-6 py-3 flex items-center gap-3 transition-all relative ${
                 isActive(item.path)
                   ? "bg-indigo-600 text-white border-l-4 border-indigo-400 shadow-lg"
                   : "text-gray-300 hover:bg-gray-700 hover:text-white"
               }`}
               title={isCollapsed ? item.label : ''}
             >
-              <span className="text-xl">{item.icon}</span>
+              <span className="text-xl relative">
+                {item.icon}
+                {item.showBadge && unreadCount > 0 && isCollapsed && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? '9' : unreadCount}
+                  </span>
+                )}
+              </span>
               {!isCollapsed && (
                 <>
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium flex-1">{item.label}</span>
                   {item.protected && <span className="text-xs text-red-400">🔒</span>}
+                  {item.showBadge && unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1 animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </>
               )}
             </button>
           ))}
         </nav>
-
-        {/* Logout */}
-        {/* <div className="p-6 border-t border-gray-700">
-          <LogoutButton />
-        </div> */}
       </aside>
 
       {/* Spacer for content - PREVENTS OVERLAP */}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LogoutButton from "./navbar/LogoutButton";
+import { apiCall } from "@/lib/api";
 
 type Props = {
   companyName: string;
@@ -14,17 +15,44 @@ export default function CompanySidebar({ companyName, companyId }: Props) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const navItems = [
     { icon: "🏠", label: "Dashboard", path: "/company/dashboard" },
     { icon: "➕", label: "Submit Job", path: "/company/submit-request" },
     { icon: "📅", label: "Calendar", path: "/company/calendar" },
-    { icon: "💬", label: "Messages", path: "/company/messages" },
+    { icon: "💬", label: "Messages", path: "/company/messages", showBadge: true },
     { icon: "❌", label: "Rejected", path: "/company/rejected-requests" },
     { icon: "📜", label: "History", path: "/company/event-history" },
   ];
 
   const isActive = (path: string) => pathname === path;
+
+  // Load unread message count
+  useEffect(() => {
+    loadUnreadCount();
+    // Poll every 30 seconds
+    const interval = setInterval(() => loadUnreadCount(), 30000);
+    return () => clearInterval(interval);
+  }, [companyId]);
+
+  const loadUnreadCount = async () => {
+    try {
+      const data = await apiCall(
+        `/direct-messages?companyId=${companyId}&userType=company`,
+        { method: "GET" }
+      );
+
+      if (data.success) {
+        const unread = (data.messages || []).filter(
+          (msg: any) => !msg.read && msg.sender_type === "superadmin"
+        ).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error("Error loading unread count:", error);
+    }
+  };
 
   return (
     <>
@@ -39,7 +67,7 @@ export default function CompanySidebar({ companyName, companyId }: Props) {
           </div>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-lg hover:bg-gray-700 text-gray-300 transition-all"
+            className="p-2 rounded-lg hover:bg-gray-700 text-gray-300 transition-all relative"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isMobileMenuOpen ? (
@@ -48,6 +76,11 @@ export default function CompanySidebar({ companyName, companyId }: Props) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               )}
             </svg>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -62,7 +95,7 @@ export default function CompanySidebar({ companyName, companyId }: Props) {
                     router.push(item.path);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full px-4 py-3 flex items-center gap-3 transition-all ${
+                  className={`w-full px-4 py-3 flex items-center gap-3 transition-all relative ${
                     isActive(item.path)
                       ? "bg-indigo-600 text-white border-l-4 border-indigo-400"
                       : "text-gray-300 hover:bg-gray-800"
@@ -70,6 +103,11 @@ export default function CompanySidebar({ companyName, companyId }: Props) {
                 >
                   <span className="text-xl">{item.icon}</span>
                   <span className="font-medium">{item.label}</span>
+                  {item.showBadge && unreadCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1 animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
               ))}
               <div className="px-4 py-3 border-t border-gray-700">
@@ -120,23 +158,34 @@ export default function CompanySidebar({ companyName, companyId }: Props) {
             <button
               key={item.path}
               onClick={() => router.push(item.path)}
-              className={`w-full px-6 py-3 flex items-center gap-3 transition-all ${
+              className={`w-full px-6 py-3 flex items-center gap-3 transition-all relative ${
                 isActive(item.path)
                   ? "bg-indigo-600 text-white border-l-4 border-indigo-400 shadow-lg"
                   : "text-gray-300 hover:bg-gray-700 hover:text-white"
               }`}
               title={isCollapsed ? item.label : ''}
             >
-              <span className="text-xl">{item.icon}</span>
-              {!isCollapsed && <span className="font-medium">{item.label}</span>}
+              <span className="text-xl relative">
+                {item.icon}
+                {item.showBadge && unreadCount > 0 && isCollapsed && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? '9' : unreadCount}
+                  </span>
+                )}
+              </span>
+              {!isCollapsed && (
+                <>
+                  <span className="font-medium flex-1">{item.label}</span>
+                  {item.showBadge && unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1 animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </>
+              )}
             </button>
           ))}
         </nav>
-
-        {/* Logout at bottom */}
-        {/* <div className="p-6 border-t border-gray-700">
-          <LogoutButton />
-        </div> */}
       </aside>
 
       {/* Spacer for content - PREVENTS OVERLAP */}
